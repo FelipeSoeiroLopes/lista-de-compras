@@ -1,26 +1,199 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Lista de Compras</title>
-    <link rel="stylesheet" href="styles.css"> <!-- Link para o arquivo CSS  -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-    <h1>Lista de Compras</h1>
-    <button id="adicionarItem">Adicionar Item</button>
-    <ul id="listaCompras">
-        <!-- Itens serão carregados dinamicamente -->
-    </ul>
+    <!-- HEADER -->
+    <header class="header">
+        <div class="header-top">
+            <div class="header-title">
+                <span class="header-icon">🛒</span>
+                <h1>Lista de Compras</h1>
+            </div>
+            <div class="header-btns">
+                <button class="icon-btn" id="btnCompartilhar" title="Compartilhar lista">📤</button>
+                <button class="icon-btn" id="btnTema" title="Alternar tema">🌙</button>
+            </div>
+        </div>
+        <div class="header-progress">
+            <div class="progress-text">
+                <span id="progressoTexto">0 de 0 itens pegos</span>
+                <span id="progressoPorcentagem">0%</span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressoBar"></div>
+            </div>
+        </div>
+    </header>
 
-    <div id="calculadora">
-        <button id="calcularTotal">Calcular Total</button>
-        <p id="valorTotal">Valor Total: R$ 0,00</p>
+    <!-- BUSCA + FILTROS (fixos) -->
+    <div class="sticky-controls">
+        <div class="search-wrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="buscaInput" placeholder="Buscar item..." autocomplete="off">
+            <button class="search-clear hidden" id="btnLimparBusca">✕</button>
+        </div>
+
+        <div class="filtros-status">
+            <button class="filtro-btn active" data-filtro="todos">Todos</button>
+            <button class="filtro-btn" data-filtro="pendentes">Pendentes</button>
+            <button class="filtro-btn" data-filtro="pegos">Pegos ✓</button>
+        </div>
+
+        <div class="categorias-scroll" id="categoriasFiltro">
+            <button class="categoria-chip active" data-cat="todas">Todas</button>
+        </div>
     </div>
 
-    <script src="script.js"></script> <!-- Link para o arquivo JavaScript -->
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+        <select id="ordenacao" class="sort-select">
+            <option value="ordem">↕ Ordem de adição</option>
+            <option value="nome">A–Z Nome</option>
+            <option value="categoria">Categoria</option>
+            <option value="preco-asc">Preço ↑</option>
+            <option value="preco-desc">Preço ↓</option>
+        </select>
+        <div class="toolbar-actions">
+            <button id="btnLimparPegos" class="btn-sm">Limpar pegos</button>
+            <button id="btnLimparTudo" class="btn-sm btn-danger">Limpar tudo</button>
+        </div>
+    </div>
 
+    <!-- LISTA -->
+    <main class="main-content">
+        <ul id="listaCompras"></ul>
+        <div class="lista-vazia hidden" id="listaVazia">
+            <div class="vazia-icon">🛒</div>
+            <p class="vazia-titulo">Lista vazia!</p>
+            <p class="vazia-sub">Toque em <strong>+</strong> para adicionar itens</p>
+        </div>
+    </main>
+
+    <!-- FOOTER FIXO -->
+    <footer class="footer">
+        <div class="footer-total">
+            <span class="total-label">Total estimado</span>
+            <span class="total-valor" id="totalValor">R$ 0,00</span>
+        </div>
+        <button class="fab" id="btnAdicionar" title="Adicionar item">+</button>
+    </footer>
+
+    <!-- MODAL ADICIONAR / EDITAR -->
+    <div class="modal-backdrop hidden" id="modalBackdrop">
+        <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitulo">
+            <div class="modal-header">
+                <h3 id="modalTitulo">Adicionar Item</h3>
+                <button class="modal-close" id="btnFecharModal" aria-label="Fechar">✕</button>
+            </div>
+            <div class="modal-body">
+                <input
+                    type="text"
+                    id="inputNome"
+                    placeholder="Nome do item *"
+                    class="input-field"
+                    autocapitalize="words"
+                    autocomplete="off"
+                    maxlength="80"
+                >
+
+                <!-- QUANTIDADE + UNIDADE -->
+                <div class="campo-grupo">
+                    <label class="campo-label">Quantidade</label>
+                    <div class="input-row">
+                        <input
+                            type="number"
+                            id="inputQuantidade"
+                            placeholder="Ex: 1.4"
+                            value="1"
+                            min="0.01"
+                            step="0.1"
+                            class="input-field input-qtd"
+                        >
+                        <select id="inputUnidade" class="input-field input-unit">
+                            <option value="un">un  — unidade</option>
+                            <option value="kg">kg  — quilograma</option>
+                            <option value="g">g   — grama</option>
+                            <option value="L">L   — litro</option>
+                            <option value="ml">ml  — mililitro</option>
+                            <option value="pct">pct — pacote</option>
+                            <option value="cx">cx  — caixa</option>
+                            <option value="dz">dz  — dúzia</option>
+                        </select>
+                    </div>
+                    <!-- dica dinâmica: aparece quando unidade é kg ou g -->
+                    <p class="campo-dica hidden" id="dicaKg">
+                        💡 <strong>1 kg e 400g</strong> → digite <strong>1.4</strong> em kg &nbsp;|&nbsp; ou <strong>1400</strong> em g
+                    </p>
+                </div>
+
+                <!-- PREÇO (máscara estilo caixa eletrônico) -->
+                <div class="campo-grupo">
+                    <label class="campo-label" id="labelPreco">Preço por unidade (opcional)</label>
+                    <div class="preco-wrapper">
+                        <span class="preco-rs">R$</span>
+                        <input
+                            type="text"
+                            id="inputPreco"
+                            inputmode="numeric"
+                            placeholder="0,00"
+                            class="input-field input-preco-field"
+                            autocomplete="off"
+                        >
+                    </div>
+                    <!-- Preview do subtotal em tempo real -->
+                    <div class="subtotal-preview hidden" id="subtotalPreview"></div>
+                </div>
+
+                <select id="inputCategoria" class="input-field">
+                    <option value="Outros">📦 Outros</option>
+                    <option value="Frutas">🍎 Frutas</option>
+                    <option value="Verduras">🥦 Verduras</option>
+                    <option value="Carnes">🥩 Carnes</option>
+                    <option value="Laticínios">🥛 Laticínios</option>
+                    <option value="Padaria">🍞 Padaria</option>
+                    <option value="Bebidas">🥤 Bebidas</option>
+                    <option value="Limpeza">🧹 Limpeza</option>
+                    <option value="Higiene">🧴 Higiene</option>
+                    <option value="Congelados">🧊 Congelados</option>
+                    <option value="Grãos">🌾 Grãos</option>
+                    <option value="Temperos">🧂 Temperos</option>
+                </select>
+            </div>
+            <div class="modal-footer-btns">
+                <button class="btn-cancelar" id="btnCancelarModal">Cancelar</button>
+                <button class="btn-confirmar" id="btnConfirmarModal">Adicionar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE CONFIRMAÇÃO CUSTOMIZADO -->
+    <div class="modal-backdrop hidden" id="confirmBackdrop">
+        <div class="modal confirm-modal">
+            <p id="confirmMsg" class="confirm-msg"></p>
+            <div class="modal-footer-btns">
+                <button class="btn-cancelar" id="btnConfirmCancelar">Cancelar</button>
+                <button class="btn-confirmar btn-danger-solid" id="btnConfirmOk">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast hidden" id="toast" role="status" aria-live="polite">
+        <span id="toastMsg"></span>
+        <button class="toast-undo hidden" id="toastUndo">Desfazer</button>
+    </div>
+
+    <script src="script.js"></script>
 </body>
 </html>
-
