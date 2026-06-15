@@ -135,6 +135,25 @@ a, button, input, select, label,
 .icon-btn:hover  { background: rgba(255,255,255,.28); }
 .icon-btn:active { transform: scale(.93); }
 
+/* Badge "ao vivo" no header */
+.live-btn {
+    width: auto !important;
+    padding: 0 10px;
+    gap: 5px;
+    font-size: .8rem !important;
+    font-weight: 700;
+    background: rgba(16, 185, 129, .25) !important;
+    border: 1.5px solid rgba(16, 185, 129, .5);
+    animation: pulse-live 2s infinite;
+}
+
+.live-btn:hover { background: rgba(16, 185, 129, .4) !important; }
+
+@keyframes pulse-live {
+    0%, 100% { border-color: rgba(16,185,129,.5); }
+    50%       { border-color: rgba(16,185,129,1); }
+}
+
 .progress-text {
     display: flex;
     justify-content: space-between;
@@ -882,6 +901,100 @@ li.item-compra.pego .item-nome {
     flex-direction: column;
     gap: 10px;
 }
+
+/* ================================================
+   MODAL COMPARTILHAMENTO AO VIVO
+   ================================================ */
+.live-share-modal { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+
+.live-share-body { display: flex; flex-direction: column; gap: 16px; }
+
+.live-share-desc {
+    font-size: .9rem;
+    color: var(--text-2);
+    line-height: 1.5;
+    text-align: center;
+}
+
+.live-code-box {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    border-radius: var(--r-lg);
+    padding: 20px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.live-code-label {
+    font-size: .75rem;
+    font-weight: 600;
+    color: rgba(255,255,255,.7);
+    text-transform: uppercase;
+    letter-spacing: .1em;
+}
+
+.live-code-valor {
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: .2em;
+    font-variant-numeric: tabular-nums;
+}
+
+.live-link-box {
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 10px 14px;
+    font-size: .8rem;
+    color: var(--text-2);
+    word-break: break-all;
+    line-height: 1.4;
+}
+
+.live-share-btns { display: flex; gap: 10px; }
+
+.btn-live-copiar, .btn-live-wpp {
+    flex: 1;
+    border: none;
+    border-radius: var(--r-md);
+    padding: 13px;
+    font-family: var(--font);
+    font-size: .92rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--t);
+}
+
+.btn-live-copiar {
+    background: var(--bg);
+    border: 2px solid var(--border);
+    color: var(--text);
+}
+.btn-live-copiar:hover { background: var(--border); }
+
+.btn-live-wpp {
+    background: #25d366;
+    color: #fff;
+}
+.btn-live-wpp:hover { background: #1fba58; }
+
+.btn-parar-live {
+    width: 100%;
+    border: 2px solid var(--danger);
+    background: transparent;
+    color: var(--danger);
+    font-family: var(--font);
+    font-size: .88rem;
+    font-weight: 600;
+    padding: 11px;
+    border-radius: var(--r-md);
+    cursor: pointer;
+    transition: all var(--t);
+}
+
+.btn-parar-live:hover { background: var(--danger); color: #fff; }
 
 /* ================================================
    UTILITÁRIOS

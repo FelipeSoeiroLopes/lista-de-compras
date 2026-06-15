@@ -29,6 +29,12 @@ let deletedItem  = null;
 let deletedIndex = null;
 let toastTimer   = null;
 
+// Firebase — live sharing
+let codigoAtivo      = null; // código da lista compartilhada ativa
+let unsubscribeLista = null; // listener do Firestore
+let syncTimer        = null; // debounce para salvar no Firestore
+let primeiraSync     = true; // evita toast no carregamento inicial
+
 /* ================================================
    INICIALIZAÇÃO
    ================================================ */
@@ -38,16 +44,26 @@ function init() {
     bindEvents();
     renderizar();
     atualizarCategoriasFiltro();
+
+    // Se a URL tiver ?c=CODIGO, entra na lista compartilhada automaticamente
+    const params = new URLSearchParams(window.location.search);
+    const codigo = params.get('c');
+    if (codigo) entrarNaLista(codigo.toUpperCase());
 }
 
 /* ================================================
    PERSISTÊNCIA
    ================================================ */
 function salvar() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        itens: state.itens,
-        tema:  state.tema,
-    }));
+    // Sempre salva tema localmente; itens só localmente quando não está em modo compartilhado
+    const payload = codigoAtivo
+        ? { tema: state.tema }                          // modo compartilhado: só tema local
+        : { itens: state.itens, tema: state.tema };    // modo local: tudo local
+    const atual = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...atual, ...payload }));
+
+    // Se estiver em modo compartilhado, sobe pro Firestore (com debounce)
+    if (codigoAtivo) sincronizarFirestore();
 }
 
 function carregarEstado() {
@@ -617,6 +633,141 @@ function esc(str) {
 }
 
 /* ================================================
+   FIREBASE — COMPARTILHAMENTO AO VIVO
+   ================================================ */
+
+function gerarCodigo() {
+    // Chars sem ambiguidade (sem 0/O, 1/I/L)
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return code;
+}
+
+// Cria uma lista no Firestore e entra nela
+async function criarListaCompartilhada() {
+    const codigo = gerarCodigo();
+    mostrarToast('Criando lista compartilhada...');
+    try {
+        await db.collection('listas').doc(codigo).set({
+            itens:    state.itens,
+            criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        entrarNaLista(codigo);
+        abrirLiveShareModal(codigo);
+    } catch (err) {
+        console.error('Erro ao criar lista:', err);
+        mostrarToast('Erro ao criar lista. Tente novamente.');
+    }
+}
+
+// Conecta a uma lista existente e escuta mudanças em tempo real
+function entrarNaLista(codigo) {
+    if (unsubscribeLista) unsubscribeLista(); // cancela listener anterior
+    codigoAtivo  = codigo;
+    primeiraSync = true;
+
+    // Atualiza URL sem recarregar a página
+    const url = new URL(window.location.href);
+    url.searchParams.set('c', codigo);
+    window.history.replaceState({}, '', url.toString());
+
+    // Mostra badge ao vivo no header
+    document.getElementById('liveCode').textContent = codigo;
+    document.getElementById('btnLiveBadge').classList.remove('hidden');
+
+    // Escuta mudanças no Firestore em tempo real
+    unsubscribeLista = db.collection('listas').doc(codigo).onSnapshot(snapshot => {
+        if (!snapshot.exists) {
+            mostrarToast('Lista não encontrada.');
+            pararCompartilhamento();
+            return;
+        }
+
+        // Ignora escritas nossas próprias (evita loop)
+        if (snapshot.metadata.hasPendingWrites) return;
+
+        const data = snapshot.data();
+        state.itens = Array.isArray(data.itens) ? data.itens : [];
+
+        renderizar();
+        atualizarCategoriasFiltro();
+
+        if (!primeiraSync) mostrarToast('🔄 Lista atualizada por outro dispositivo');
+        primeiraSync = false;
+    }, err => {
+        console.error('Erro no listener:', err);
+        mostrarToast('Erro de conexão com a lista.');
+    });
+}
+
+// Sobe os itens atuais pro Firestore (debounce 600ms para não spam)
+function sincronizarFirestore() {
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(async () => {
+        if (!codigoAtivo) return;
+        try {
+            await db.collection('listas').doc(codigoAtivo).update({
+                itens: state.itens,
+                atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+        } catch (err) {
+            console.error('Erro ao sincronizar:', err);
+        }
+    }, 600);
+}
+
+// Para o compartilhamento, deleta do Firestore e volta ao modo local
+async function pararCompartilhamento() {
+    const codigoParaDeletar = codigoAtivo;
+
+    if (unsubscribeLista) { unsubscribeLista(); unsubscribeLista = null; }
+    codigoAtivo = null;
+
+    document.getElementById('btnLiveBadge').classList.add('hidden');
+
+    // Remove ?c= da URL
+    const url = new URL(window.location.href);
+    url.searchParams.delete('c');
+    window.history.replaceState({}, '', url.toString());
+
+    // Restaura itens do localStorage pessoal
+    const salvo = localStorage.getItem(STORAGE_KEY);
+    if (salvo) {
+        try { state.itens = JSON.parse(salvo).itens || []; } catch (_) {}
+    }
+    renderizar();
+    atualizarCategoriasFiltro();
+
+    // Deleta a lista do Firestore
+    if (codigoParaDeletar) {
+        try {
+            await db.collection('listas').doc(codigoParaDeletar).delete();
+        } catch (err) {
+            console.error('Erro ao deletar lista do Firestore:', err);
+        }
+    }
+
+    mostrarToast('Compartilhamento encerrado');
+}
+
+// Abre o modal mostrando código + link
+function abrirLiveShareModal(codigo) {
+    const link = `${window.location.origin}${window.location.pathname}?c=${codigo}`;
+    document.getElementById('liveCodeDisplay').textContent = codigo;
+    document.getElementById('liveLinkBox').textContent     = link;
+    document.getElementById('liveShareBackdrop').classList.remove('hidden');
+}
+
+function fecharLiveShareModal() {
+    document.getElementById('liveShareBackdrop').classList.add('hidden');
+}
+
+function getLiveLink() {
+    return `${window.location.origin}${window.location.pathname}?c=${codigoAtivo}`;
+}
+
+/* ================================================
    EVENTOS
    ================================================ */
 function bindEvents() {
@@ -660,8 +811,49 @@ function bindEvents() {
     // Tema
     document.getElementById('btnTema').addEventListener('click', toggleTema);
 
-    // Compartilhar
+    // Compartilhar texto (WhatsApp)
     document.getElementById('btnCompartilhar').addEventListener('click', compartilharLista);
+
+    // Compartilhar ao vivo (Firebase)
+    document.getElementById('btnLiveShare').addEventListener('click', () => {
+        if (codigoAtivo) {
+            abrirLiveShareModal(codigoAtivo); // já está em modo ao vivo: reabre o modal
+        } else {
+            criarListaCompartilhada();
+        }
+    });
+
+    // Badge ao vivo no header → reabre modal
+    document.getElementById('btnLiveBadge').addEventListener('click', () => {
+        if (codigoAtivo) abrirLiveShareModal(codigoAtivo);
+    });
+
+    // Modal ao vivo
+    document.getElementById('btnFecharLiveShare').addEventListener('click', fecharLiveShareModal);
+    document.getElementById('liveShareBackdrop').addEventListener('click', e => {
+        if (e.target === document.getElementById('liveShareBackdrop')) fecharLiveShareModal();
+    });
+
+    document.getElementById('btnCopiarLive').addEventListener('click', () => {
+        navigator.clipboard.writeText(getLiveLink())
+            .then(() => mostrarToast('Link copiado! 📋'))
+            .catch(() => mostrarToast('Não foi possível copiar.'));
+    });
+
+    document.getElementById('btnWppLive').addEventListener('click', () => {
+        const texto = `Oi! Acessa essa lista de compras ao vivo: ${getLiveLink()}`;
+        if (navigator.share) {
+            navigator.share({ title: 'Lista de Compras', text: texto }).catch(() => {});
+        } else {
+            window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
+        }
+    });
+
+    document.getElementById('btnPararLive').addEventListener('click', () => {
+        // Fecha o modal ao vivo ANTES de abrir o confirm — senão o modal fica preso
+        fecharLiveShareModal();
+        confirmarAcao('Parar o compartilhamento e remover a lista do servidor?', pararCompartilhamento);
+    });
 
     // Filtros de status
     document.querySelectorAll('.filtro-btn').forEach(btn => {
@@ -717,8 +909,9 @@ function bindEvents() {
     // Escape fecha modais abertos
     document.addEventListener('keydown', e => {
         if (e.key !== 'Escape') return;
-        if (!document.getElementById('modalBackdrop').classList.contains('hidden')) { fecharModal(); return; }
-        if (!document.getElementById('confirmBackdrop').classList.contains('hidden')) { fecharConfirm(); return; }
+        if (!document.getElementById('modalBackdrop').classList.contains('hidden'))    { fecharModal();          return; }
+        if (!document.getElementById('confirmBackdrop').classList.contains('hidden'))  { fecharConfirm();        return; }
+        if (!document.getElementById('liveShareBackdrop').classList.contains('hidden')){ fecharLiveShareModal(); return; }
     });
 }
 

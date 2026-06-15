@@ -21,7 +21,9 @@
                 <h1>Lista de Compras</h1>
             </div>
             <div class="header-btns">
-                <button class="icon-btn" id="btnCompartilhar" title="Compartilhar lista">📤</button>
+                <button class="icon-btn live-btn hidden" id="btnLiveBadge" title="Lista ao vivo">🟢 <span id="liveCode"></span></button>
+                <button class="icon-btn" id="btnLiveShare" title="Compartilhar ao vivo">🔗</button>
+                <button class="icon-btn" id="btnCompartilhar" title="Compartilhar via WhatsApp">📤</button>
                 <button class="icon-btn" id="btnTema" title="Alternar tema">🌙</button>
             </div>
         </div>
@@ -188,12 +190,43 @@
         </div>
     </div>
 
+    <!-- MODAL COMPARTILHAMENTO AO VIVO -->
+    <div class="modal-backdrop hidden" id="liveShareBackdrop">
+        <div class="modal live-share-modal">
+            <div class="modal-header">
+                <h3>🔗 Compartilhar ao vivo</h3>
+                <button class="modal-close" id="btnFecharLiveShare">✕</button>
+            </div>
+            <div class="live-share-body">
+                <p class="live-share-desc">Qualquer pessoa com este código abre a mesma lista e vê as atualizações em tempo real.</p>
+
+                <div class="live-code-box">
+                    <span class="live-code-label">Código</span>
+                    <span class="live-code-valor" id="liveCodeDisplay">------</span>
+                </div>
+
+                <div class="live-link-box" id="liveLinkBox"></div>
+
+                <div class="live-share-btns">
+                    <button class="btn-live-copiar" id="btnCopiarLive">📋 Copiar link</button>
+                    <button class="btn-live-wpp" id="btnWppLive">📱 WhatsApp</button>
+                </div>
+
+                <button class="btn-parar-live" id="btnPararLive">Parar compartilhamento</button>
+            </div>
+        </div>
+    </div>
+
     <!-- TOAST -->
     <div class="toast hidden" id="toast" role="status" aria-live="polite">
         <span id="toastMsg"></span>
         <button class="toast-undo hidden" id="toastUndo">Desfazer</button>
     </div>
 
+    <!-- Firebase compat SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
