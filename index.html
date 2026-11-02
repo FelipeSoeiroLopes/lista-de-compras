@@ -284,25 +284,6 @@
                     </p>
                 </div>
 
-                <!-- PREÇO (máscara estilo caixa eletrônico) -->
-                <div class="campo-grupo campo-preco" data-etapa-campo="preco">
-                    <label class="campo-label" id="labelPreco" for="inputPreco">Preço por unidade (opcional)</label>
-                    <div class="preco-wrapper">
-                        <span class="preco-rs">R$</span>
-                        <input
-                            type="text"
-                            id="inputPreco"
-                            inputmode="numeric"
-                            placeholder="0,00"
-                            class="input-field input-preco-field"
-                            autocomplete="off"
-                        >
-                    </div>
-                    <p class="campo-dica hidden" id="dicaPreco">Último preço que você usou. Confira na etiqueta.</p>
-                    <!-- Preview do subtotal em tempo real -->
-                    <div class="subtotal-preview hidden" id="subtotalPreview"></div>
-                </div>
-
                 <div class="campo-grupo" data-etapa-campo="preco">
                     <label class="campo-label" for="inputCategoria">Categoria</label>
                     <select id="inputCategoria" class="input-field">
@@ -324,6 +305,25 @@
                         <option value="Grãos">🌾 Grãos</option>
                         <option value="Temperos">🧂 Temperos</option>
                     </select>
+                </div>
+
+                <!-- PREÇO (máscara estilo caixa eletrônico) -->
+                <div class="campo-grupo campo-preco" data-etapa-campo="preco">
+                    <label class="campo-label" id="labelPreco" for="inputPreco">Preço por unidade (opcional)</label>
+                    <div class="preco-wrapper">
+                        <span class="preco-rs">R$</span>
+                        <input
+                            type="text"
+                            id="inputPreco"
+                            inputmode="numeric"
+                            placeholder="0,00"
+                            class="input-field input-preco-field"
+                            autocomplete="off"
+                        >
+                    </div>
+                    <p class="campo-dica hidden" id="dicaPreco">Último preço que você usou. Confira na etiqueta.</p>
+                    <!-- Preview do subtotal em tempo real -->
+                    <div class="subtotal-preview hidden" id="subtotalPreview"></div>
                 </div>
             </div>
             <div class="modal-acoes">
