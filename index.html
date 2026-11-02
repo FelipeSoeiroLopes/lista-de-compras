@@ -70,6 +70,8 @@
             <symbol id="i-sort" viewBox="0 0 24 24"><path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"/></symbol>
             <symbol id="i-broom" viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/><path d="M4 21h16"/></symbol>
             <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></symbol>
+            <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.8v.1"/></symbol>
+            <symbol id="i-alerta" viewBox="0 0 24 24"><path d="M12 4 3 20h18zM12 10v4M12 17v.1"/></symbol>
             <symbol id="i-instalar" viewBox="0 0 24 24"><path d="M12 4v11M8 11l4 4 4-4M5 20h14"/></symbol>
             <symbol id="i-sair" viewBox="0 0 24 24"><path d="M10 4H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4M15 8l4 4-4 4M19 12H10"/></symbol>
             <symbol id="i-flash" viewBox="0 0 24 24"><path d="M13 3 5 14h6l-1 7 8-11h-6z"/></symbol>
@@ -321,7 +323,7 @@
                             autocomplete="off"
                         >
                     </div>
-                    <p class="campo-dica hidden" id="dicaPreco">Último preço que você usou. Confira na etiqueta.</p>
+                    <button type="button" class="dica-preco hidden" id="dicaPreco"></button>
                     <!-- Preview do subtotal em tempo real -->
                     <div class="subtotal-preview hidden" id="subtotalPreview"></div>
                 </div>
@@ -339,6 +341,7 @@
     <!-- MODAL DE CONFIRMAÇÃO CUSTOMIZADO -->
     <div class="modal-backdrop hidden" id="confirmBackdrop">
         <div class="modal confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitulo" aria-describedby="confirmMsg">
+            <div class="confirm-icone" id="confirmIcone" aria-hidden="true"><svg class="ico"><use id="confirmIconeUso" href="#i-trash"/></svg></div>
             <h3 id="confirmTitulo" class="confirm-titulo"></h3>
             <p id="confirmMsg" class="confirm-msg"></p>
             <div class="modal-footer-btns">
@@ -416,6 +419,7 @@
 
     <!-- TOAST -->
     <div class="toast hidden" id="toast" role="status" aria-live="polite">
+        <span class="toast-icone" id="toastIcone" aria-hidden="true"><svg class="ico"><use id="toastIconeUso" href="#i-check"/></svg></span>
         <span id="toastMsg"></span>
         <button class="toast-undo hidden" id="toastUndo">Desfazer</button>
     </div>

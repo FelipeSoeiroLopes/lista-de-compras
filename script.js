@@ -290,7 +290,7 @@ function criarItemEl(item) {
     aoTocar('.item-mais',        () => alterarQuantidade(item.id, 1));
     aoTocar('.item-sem-preco',   () => abrirEditar(item.id, 'inputPreco'));
     aoTocar('.item-btn-editar',  () => abrirEditar(item.id));
-    aoTocar('.item-btn-remover', () => removerItem(item.id));
+    aoTocar('.item-btn-remover', () => pedirRemoverItem(item.id));
 
     return li;
 }
@@ -347,6 +347,24 @@ function alterarQuantidade(id, direcao) {
     renderizar();
 }
 
+function nomeLegivel(nome) {
+    return nome.charAt(0) + nome.slice(1).toLowerCase();
+}
+
+function pedirRemoverItem(id) {
+    const item = state.itens.find(i => i.id === id);
+    if (!item) return;
+    confirmarAcao(
+        {
+            titulo:   'Excluir este item?',
+            mensagem: `"${nomeLegivel(item.nome)}" sai da lista.`,
+            botao:    'Excluir',
+            icone:    'trash',
+        },
+        () => removerItem(id)
+    );
+}
+
 function removerItem(id) {
     const idx = state.itens.findIndex(i => i.id === id);
     if (idx === -1) return;
@@ -356,7 +374,7 @@ function removerItem(id) {
     salvar();
     renderizar();
     atualizarCategoriasFiltro();
-    mostrarToast(`"${deletedItem.nome}" removido`, true);
+    mostrarToast(`"${nomeLegivel(deletedItem.nome)}" excluído`, true);
 }
 
 function desfazerRemocao() {
@@ -376,8 +394,8 @@ function desfazerRemocao() {
 
 // Aplica máscara de centavos: "890" → "8,90", "8900" → "89,00"
 function aplicarMascaraPreco(input) {
-    // Guarda posição para não deslocar cursor desnecessariamente
-    let digits = input.value.replace(/\D/g, '');
+    // O limite evita valores absurdos: até R$ 9.999.999,99
+    let digits = input.value.replace(/\D/g, '').slice(0, 9);
 
     if (!digits || digits === '0'.repeat(digits.length)) {
         input.value = '';
@@ -395,6 +413,8 @@ function aplicarMascaraPreco(input) {
     // Formatação com ponto de milhar (pt-BR)
     const intFormatado = parseInt(intPart, 10).toLocaleString('pt-BR');
     input.value = `${intFormatado},${decPart}`;
+    // Como no caixa eletrônico, cada número entra sempre no fim
+    input.setSelectionRange(input.value.length, input.value.length);
 }
 
 // Lê o campo de preço como float (ex: "8,90" → 8.9)
@@ -752,7 +772,8 @@ function abrirProdutoDoScanner(produto, situacao) {
         botao:  'Adicionar',
         etapas: temNome ? ['quantidade', 'preco'] : ['produto', 'quantidade', 'preco'],
     });
-    preencherCampos(produto);
+    // O valor sempre começa zerado: o último preço é só uma sugestão, usada se a pessoa quiser
+    preencherCampos({ ...produto, preco: 0 });
     mostrarProdutoInfo({
         nome:    produto.nome,
         aviso:   AVISOS_LEITURA[situacao](produto),
@@ -760,7 +781,7 @@ function abrirProdutoDoScanner(produto, situacao) {
         imagem:  produto.imagem,
         tipo:    temNome ? '' : 'aviso',
     });
-    document.getElementById('dicaPreco').classList.toggle('hidden', !(produto.preco > 0));
+    mostrarDicaPreco(produto.preco);
     irParaEtapa(temNome ? 'quantidade' : 'produto');
 }
 
@@ -847,8 +868,11 @@ function escolherSugestao(p) {
     nome.value = p.nome.toUpperCase();
     document.getElementById('inputUnidade').value   = p.unidade;
     document.getElementById('inputCategoria').value = p.categoria;
-    setPrecoMascara(p.preco);
-    document.getElementById('dicaPreco').classList.toggle('hidden', !(p.preco > 0));
+    // Na edição, o preço do item continua o mesmo. Ao adicionar, começa zerado
+    if (state.etapasFluxo) {
+        setPrecoMascara(0);
+        mostrarDicaPreco(p.preco);
+    }
     atualizarUIDaUnidade();
     esconderSugestoes();
 
@@ -892,14 +916,26 @@ function aoDigitarNome() {
         document.getElementById('inputCategoria').value = categoriaPeloNome(nome) || 'Outros';
     }
 
-    const preco = precoLembrado(nome);
-    if (preco > 0 && !getPrecoFloat()) {
-        setPrecoMascara(preco);
-        document.getElementById('dicaPreco').classList.remove('hidden');
-        atualizarPreviewSubtotal();
-    }
+    if (state.etapasFluxo) mostrarDicaPreco(precoLembrado(nome));
 
     atualizarSugestoes();
+}
+
+// Sugestão opcional: o preço só muda se a pessoa tocar
+function mostrarDicaPreco(valor) {
+    const dica = document.getElementById('dicaPreco');
+    const tem  = valor > 0;
+    dica.classList.toggle('hidden', !tem);
+    if (!tem) return;
+    dica.dataset.valor = valor;
+    dica.textContent = `Último preço: R$ ${fmtNum(valor)} · usar`;
+}
+
+function usarUltimoPreco() {
+    const dica = document.getElementById('dicaPreco');
+    setPrecoMascara(parseFloat(dica.dataset.valor) || 0);
+    dica.classList.add('hidden');
+    atualizarPreviewSubtotal();
 }
 
 function mudarQuantidadeForm(direcao) {
@@ -943,12 +979,12 @@ function confirmarModal({ continuarEscaneando = false } = {}) {
     if (state.editandoId) {
         const item = state.itens.find(i => i.id === state.editandoId);
         if (item) Object.assign(item, dados);
-        mostrarToast(`"${nome}" atualizado ✓`);
+        mostrarToast(`"${nomeLegivel(nome)}" atualizado`);
     } else {
         const id = gerarId();
         state.itens.push({ id, ...dados, pego: false, ordem: Date.now() });
         novoItemId = id;
-        mostrarToast(`"${nome}" adicionado ✓`);
+        mostrarToast(`"${nomeLegivel(nome)}" adicionado`);
     }
 
     lembrarProduto(dados);
@@ -1031,7 +1067,7 @@ function compartilharLista() {
         navigator.share({ title: 'Lista de Compras', text: texto }).catch(() => {});
     } else {
         navigator.clipboard.writeText(texto)
-            .then(() => mostrarToast('Lista copiada! Cole no WhatsApp 📋'))
+            .then(() => mostrarToast('Lista copiada! Cole no WhatsApp'))
             .catch(()  => mostrarToast('Não foi possível copiar.'));
     }
 }
@@ -1049,6 +1085,7 @@ function limparPegos() {
                 ? '1 item já pego sai da lista. O total também será atualizado.'
                 : `${count} itens já pegos saem da lista. O total também será atualizado.`,
             botao:    'Remover',
+            icone:    'broom',
         },
         () => {
             state.itens = state.itens.filter(i => !i.pego);
@@ -1068,6 +1105,7 @@ function limparTudo() {
             titulo:   'Apagar a lista inteira?',
             mensagem: `${total === 1 ? 'O único item' : `Os ${total} itens`} serão apagados${codigoAtivo ? ' para todos que usam este link' : ''}. Não dá para desfazer.`,
             botao:    'Apagar lista',
+            icone:    'trash',
         },
         () => {
             state.itens = [];
@@ -1084,14 +1122,18 @@ function limparTudo() {
    ================================================ */
 let confirmCallback = null;
 
-function confirmarAcao({ titulo, mensagem, botao = 'Confirmar', perigo = true }, callback) {
+function confirmarAcao({ titulo, mensagem, botao = 'Confirmar', perigo = true, icone = 'alerta' }, callback) {
     confirmCallback = callback;
+    document.getElementById('confirmIconeUso').setAttribute('href', `#i-${icone}`);
+    document.getElementById('confirmIcone').classList.toggle('perigo', perigo);
     document.getElementById('confirmTitulo').textContent = titulo;
     document.getElementById('confirmMsg').textContent = mensagem;
     const ok = document.getElementById('btnConfirmOk');
     ok.textContent = botao;
     ok.classList.toggle('btn-danger-solid', perigo);
     document.getElementById('confirmBackdrop').classList.remove('hidden');
+    // Foco em Cancelar: um Enter sem querer nunca apaga nada
+    document.getElementById('btnConfirmCancelar').focus({ preventScroll: true });
 }
 
 function fecharConfirm() {
@@ -1102,12 +1144,24 @@ function fecharConfirm() {
 /* ================================================
    TOAST
    ================================================ */
+const ICONE_TOAST = { sucesso: 'check', erro: 'x', info: 'info', remocao: 'trash' };
+
+function tipoDoToast(msg, comUndo) {
+    if (comUndo) return 'remocao';
+    if (/erro|não foi possível|sem acesso|não encontrada/i.test(msg)) return 'erro';
+    if (/criando|atualizada por|encerrado|nenhum|vazia/i.test(msg)) return 'info';
+    return 'sucesso';
+}
+
 function mostrarToast(msg, comUndo = false) {
     clearTimeout(toastTimer);
     const toast  = document.getElementById('toast');
     const msgEl  = document.getElementById('toastMsg');
     const undoEl = document.getElementById('toastUndo');
+    const tipo   = tipoDoToast(msg, comUndo);
     msgEl.textContent = msg;
+    toast.dataset.tipo = tipo;
+    document.getElementById('toastIconeUso').setAttribute('href', `#i-${ICONE_TOAST[tipo]}`);
     undoEl.classList.toggle('hidden', !comUndo);
     toast.classList.remove('hidden');
     toastTimer = setTimeout(esconderToast, comUndo ? 4500 : 2500);
@@ -1211,7 +1265,7 @@ function entrarNaLista(codigo) {
         renderizar();
         atualizarCategoriasFiltro();
 
-        if (!primeiraSync) mostrarToast('🔄 Lista atualizada por outro dispositivo');
+        if (!primeiraSync) mostrarToast('Lista atualizada por outro aparelho');
         primeiraSync = false;
     }, err => {
         console.error('Erro no listener:', err);
@@ -1336,6 +1390,7 @@ function bindEvents() {
                 titulo:   'Sair da conta?',
                 mensagem: 'Você precisará da senha para entrar de novo. Sua lista continua salva neste aparelho.',
                 botao:    'Sair',
+                icone:    'sair',
             },
             sair
         );
@@ -1367,14 +1422,27 @@ function bindEvents() {
         atualizarPreviewSubtotal();
     });
 
-    // Bloqueia tudo que não é dígito (exceto teclas de controle)
     inputPreco.addEventListener('keydown', e => {
-        const permitidas = ['Backspace','Delete','ArrowLeft','ArrowRight','Tab','Enter'];
-        if (!permitidas.includes(e.key) && !/^\d$/.test(e.key)) {
-            e.preventDefault();
-        }
         if (e.key === 'Enter') confirmarModal();
     });
+
+    // Tocar no preço seleciona o valor: o que for digitado substitui tudo. Com o campo já
+    // em uso, o cursor volta para o fim, porque um número no meio embaralharia os centavos.
+    let precoRecemFocado = false;
+    inputPreco.addEventListener('focus', () => {
+        precoRecemFocado = true;
+        inputPreco.select();
+    });
+    inputPreco.addEventListener('blur', () => { precoRecemFocado = false; });
+    inputPreco.addEventListener('click', () => {
+        if (precoRecemFocado) {
+            precoRecemFocado = false;
+            inputPreco.select();
+        } else {
+            inputPreco.setSelectionRange(inputPreco.value.length, inputPreco.value.length);
+        }
+    });
+    document.getElementById('dicaPreco').addEventListener('click', usarUltimoPreco);
 
     // Teclas no modal
     document.getElementById('inputNome').addEventListener('keydown', e => {
@@ -1413,7 +1481,7 @@ function bindEvents() {
 
     document.getElementById('btnCopiarLive').addEventListener('click', () => {
         navigator.clipboard.writeText(getLiveLink())
-            .then(() => mostrarToast('Link copiado! 📋'))
+            .then(() => mostrarToast('Link copiado!'))
             .catch(() => mostrarToast('Não foi possível copiar.'));
     });
 
@@ -1434,6 +1502,7 @@ function bindEvents() {
                 titulo:   'Parar o compartilhamento?',
                 mensagem: 'O link deixa de funcionar e a lista compartilhada será apagada do servidor.',
                 botao:    'Parar',
+                icone:    'link',
             },
             pararCompartilhamento
         );
@@ -1556,7 +1625,7 @@ function configurarBotaoVoltar() {
         reservarVoltar();
         if (fecharTelaAberta()) return;
         confirmarAcao(
-            { titulo: 'Fechar o aplicativo?', mensagem: 'Sua lista continua salva neste aparelho.', botao: 'Fechar app', perigo: false },
+            { titulo: 'Fechar o aplicativo?', mensagem: 'Sua lista continua salva neste aparelho.', botao: 'Fechar app', perigo: false, icone: 'sair' },
             () => {
                 saindo = true;
                 history.go(-2);
