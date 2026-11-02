@@ -2,7 +2,7 @@
 <html lang="pt-BR" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
     <meta name="theme-color" content="#0a46b8" id="metaTema">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -206,22 +206,29 @@
     <div class="modal-backdrop hidden" id="modalBackdrop">
         <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitulo">
             <div class="modal-header">
-                <h3 id="modalTitulo">Adicionar Item</h3>
+                <div class="modal-titulos">
+                    <p class="etapa-contador hidden" id="etapaContador"></p>
+                    <h3 id="modalTitulo" tabindex="-1">Adicionar Item</h3>
+                </div>
                 <button class="modal-close" id="btnFecharModal" aria-label="Fechar"><svg class="ico"><use href="#i-x"/></svg></button>
             </div>
+            <div class="etapa-progresso hidden" id="etapaProgresso" aria-hidden="true"></div>
             <div class="modal-body">
                 <!-- Produto vindo do código de barras -->
                 <div class="produto-info hidden" id="produtoInfo">
-                    <img class="produto-foto hidden" id="produtoFoto" alt="" referrerpolicy="no-referrer">
+                    <div class="produto-foto-caixa hidden" id="produtoFotoCaixa">
+                        <span class="produto-foto-icone" id="produtoFotoIcone" aria-hidden="true"></span>
+                        <img class="produto-foto hidden" id="produtoFoto" alt="" referrerpolicy="no-referrer">
+                    </div>
                     <div class="produto-textos">
                         <p class="produto-nome" id="produtoNome"></p>
                         <p class="produto-detalhe" id="produtoDetalhe"></p>
                         <p class="produto-aviso" id="produtoAviso"></p>
-                        <button type="button" class="btn-link btn-corrigir hidden" id="btnCorrigirNome">Corrigir nome</button>
                     </div>
+                    <button type="button" class="btn-corrigir hidden" id="btnCorrigirNome" aria-label="Corrigir nome"><svg class="ico"><use href="#i-edit"/></svg><span>Corrigir nome</span></button>
                 </div>
 
-                <div class="campo-grupo campo-nome" id="campoNome">
+                <div class="campo-grupo campo-nome" id="campoNome" data-etapa-campo="produto">
                     <label class="campo-label" for="inputNome">Produto</label>
                     <div class="nome-row">
                         <input
@@ -242,7 +249,7 @@
                 </div>
 
                 <!-- QUANTIDADE + UNIDADE -->
-                <div class="campo-grupo">
+                <div class="campo-grupo campo-quantidade" data-etapa-campo="quantidade">
                     <label class="campo-label" for="inputQuantidade">Quantidade</label>
                     <div class="input-row">
                         <div class="qtd-stepper">
@@ -270,6 +277,7 @@
                             <option value="dz">dz</option>
                         </select>
                     </div>
+                    <div class="qtd-atalhos" id="qtdAtalhos" role="group" aria-label="Quantidades comuns"></div>
                     <!-- dica dinâmica: aparece quando unidade é kg ou g -->
                     <p class="campo-dica hidden" id="dicaKg">
                         <strong>1 kg e 400 g</strong> → digite <strong>1.4</strong> em kg, ou <strong>1400</strong> em g
@@ -277,7 +285,7 @@
                 </div>
 
                 <!-- PREÇO (máscara estilo caixa eletrônico) -->
-                <div class="campo-grupo">
+                <div class="campo-grupo campo-preco" data-etapa-campo="preco">
                     <label class="campo-label" id="labelPreco" for="inputPreco">Preço por unidade (opcional)</label>
                     <div class="preco-wrapper">
                         <span class="preco-rs">R$</span>
@@ -295,7 +303,7 @@
                     <div class="subtotal-preview hidden" id="subtotalPreview"></div>
                 </div>
 
-                <div class="campo-grupo">
+                <div class="campo-grupo" data-etapa-campo="preco">
                     <label class="campo-label" for="inputCategoria">Categoria</label>
                     <select id="inputCategoria" class="input-field">
                         <option value="Outros">📦 Outros</option>
@@ -319,8 +327,10 @@
                 </div>
             </div>
             <div class="modal-acoes">
+                <button class="btn-confirmar hidden" id="btnProximo">Próximo</button>
                 <button class="btn-confirmar" id="btnConfirmarModal">Adicionar</button>
                 <button class="btn-escanear-outro hidden" id="btnAdicionarEscanear"><svg class="ico"><use href="#i-barcode"/></svg><span id="textoAdicionarEscanear">Adicionar e escanear outro</span></button>
+                <button class="btn-cancelar hidden" id="btnVoltarEtapa">Voltar</button>
                 <button class="btn-cancelar" id="btnCancelarModal">Cancelar</button>
             </div>
         </div>

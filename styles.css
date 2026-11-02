@@ -764,6 +764,9 @@ li.item-compra.pego .item-nome {
     display: flex;
     align-items: flex-end;
     justify-content: center;
+    /* Acompanha o teclado do celular: o formulário fica sempre na parte visível */
+    bottom: auto;
+    height: var(--altura-visivel, 100%);
     animation: fadeBg .18s ease;
     /* Garante que o modal sobe junto com o teclado no iOS */
     -webkit-overflow-scrolling: touch;
@@ -780,9 +783,7 @@ li.item-compra.pego .item-nome {
     padding: 18px 18px calc(18px + env(safe-area-inset-bottom, 0px));
     width: 100%;
     max-width: 640px;
-    /* max-height com dvh para funcionar com teclado aberto */
-    max-height: 92vh;
-    max-height: 92dvh;
+    max-height: 94%;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     animation: slideUp .25s cubic-bezier(.4,0,.2,1);
@@ -1006,9 +1007,11 @@ select.input-field {
 
 /* Cartão do produto escaneado */
 .produto-info {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
-    gap: 12px;
+    column-gap: 12px;
+    row-gap: 6px;
     padding: 10px 12px;
     background: var(--primary-soft);
     border-radius: var(--r-md);
@@ -1016,13 +1019,33 @@ select.input-field {
 
 .produto-info[data-tipo="aviso"] { background: var(--surface-2); }
 
-.produto-foto {
+.produto-foto-caixa {
+    grid-row: 1 / span 2;
+    position: relative;
     width: 76px;
     height: 76px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+}
+
+[data-theme="dark"] .produto-foto-caixa { border-color: transparent; }
+
+.produto-foto-icone { font-size: 2.2rem; line-height: 1; }
+
+.produto-foto {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    padding: 3px;
     object-fit: contain;
     background: #fff;
-    border-radius: var(--r-sm);
-    flex-shrink: 0;
+    animation: fadeIn .2s ease;
 }
 
 .produto-textos { min-width: 0; }
@@ -1037,9 +1060,35 @@ select.input-field {
 .produto-nome::first-letter { text-transform: uppercase; }
 .produto-nome:empty, .produto-detalhe:empty { display: none; }
 .produto-detalhe { font-size: .85rem; color: var(--text-2); margin-top: 2px; overflow-wrap: anywhere; }
+.produto-aviso:empty { display: none; }
 .produto-aviso { font-size: .76rem; color: var(--text-2); line-height: 1.35; margin-top: 3px; }
 .produto-info[data-tipo="aviso"] .produto-aviso { font-size: .88rem; font-weight: 600; color: var(--text); margin-top: 0; }
-.btn-corrigir { padding: 4px 0 0; font-size: .8rem; }
+.produto-textos { align-self: end; }
+/* Sem foto (aviso de código sem cadastro), o texto ocupa toda a largura */
+.produto-foto-caixa.hidden ~ .produto-textos { grid-column: 1 / -1; }
+
+.btn-corrigir {
+    grid-column: 2;
+    justify-self: start;
+    align-self: start;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 34px;
+    padding: 0 12px 0 9px;
+    color: var(--primary-ink);
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-full);
+    font-size: .82rem;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background var(--t);
+}
+
+.btn-corrigir:hover { background: var(--surface-2); }
+.btn-corrigir .ico { width: 1.15em; height: 1.15em; }
 
 /* Campo de preço com prefixo R$ */
 .preco-wrapper {
@@ -1113,7 +1162,150 @@ select.input-field {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    /* Sempre à vista, mesmo com o teclado aberto e o conteúdo rolando */
+    position: sticky;
+    bottom: calc(-1 * (18px + env(safe-area-inset-bottom, 0px)));
+    z-index: 2;
+    margin-bottom: calc(-1 * (18px + env(safe-area-inset-bottom, 0px)));
+    padding: 8px 0 calc(18px + env(safe-area-inset-bottom, 0px));
+    background: var(--surface);
 }
+
+/* ------------------------------------------------
+   Etapas do formulário
+   ------------------------------------------------ */
+.fora-da-etapa { display: none !important; }
+
+.modal-titulos { min-width: 0; }
+.modal-titulos h3:focus { outline: none; }
+
+.etapa-contador {
+    font-size: .8rem;
+    font-weight: 700;
+    color: var(--primary-ink);
+    margin-bottom: 2px;
+}
+
+.etapa-progresso {
+    display: flex;
+    gap: 6px;
+    margin: -6px 0 16px;
+}
+
+.etapa-progresso span {
+    flex: 1;
+    height: 5px;
+    border-radius: var(--r-full);
+    background: var(--surface-2);
+    transition: background var(--t);
+}
+
+.etapa-progresso span.feita { background: var(--primary); }
+
+.em-etapas .modal-header h3 { font-size: 1.45rem; }
+.em-etapas .modal-body { min-height: 120px; }
+.em-etapas .btn-confirmar { padding: 16px; font-size: 1.05rem; }
+
+/* Quantidade grande, fácil de acertar com o dedo no meio do corredor */
+.em-etapas .campo-quantidade > .campo-label { display: none; }
+.em-etapas .campo-quantidade .input-row { flex-wrap: wrap; }
+.em-etapas .qtd-stepper { flex: 1 1 100%; }
+.em-etapas .qtd-btn { width: 72px; min-height: 68px; font-size: 1.5rem; background: var(--primary-soft); }
+.em-etapas .input-qtd { font-family: var(--titulo); font-size: 2rem; font-weight: 700; padding: 8px 0; }
+.em-etapas .input-unit { flex: 1 1 100%; }
+
+.qtd-atalhos {
+    display: none;
+    grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.em-etapas .qtd-atalhos { display: grid; }
+
+.qtd-atalho {
+    min-height: 46px;
+    padding: 0 4px;
+    color: var(--text);
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-md);
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-variant-numeric: tabular-nums;
+    transition: background var(--t), color var(--t), border-color var(--t);
+}
+
+.qtd-atalho.ativo { color: #fff; background: var(--primary); border-color: var(--primary); }
+
+/* Preço grande, com a etiqueta da unidade logo acima */
+.em-etapas .input-preco-field { font-size: 2rem !important; padding: 12px 14px 12px 6px !important; }
+.em-etapas .preco-rs { font-size: 1.2rem; }
+
+/* Pouca altura, em geral com o teclado aberto: o que se está preenchendo vem primeiro */
+.tela-baixa .em-etapas { padding-top: 12px; scroll-padding-bottom: 90px; }
+.tela-baixa .em-etapas .modal-header { margin-bottom: 8px; }
+.tela-baixa .em-etapas .modal-header h3 { font-size: 1.15rem; }
+.tela-baixa .em-etapas .modal-close { width: 30px; height: 30px; }
+.tela-baixa .em-etapas .etapa-contador { display: none; }
+.tela-baixa .em-etapas .etapa-progresso { margin: 0 0 8px; }
+.tela-baixa .em-etapas .etapa-progresso span { height: 4px; }
+.tela-baixa .em-etapas .modal-body { gap: 8px; margin-bottom: 8px; min-height: 0; }
+
+/* Uma linha só: foto, nome e o botão de corrigir, que continua disponível */
+.tela-baixa .em-etapas .produto-info { grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 10px; padding: 6px 8px; }
+.tela-baixa .em-etapas .produto-foto-caixa { grid-row: auto; width: 42px; height: 42px; border-radius: var(--r-sm); }
+.tela-baixa .em-etapas .produto-foto-icone { font-size: 1.35rem; }
+.tela-baixa .em-etapas .produto-textos { align-self: center; }
+.tela-baixa .em-etapas .btn-corrigir { grid-column: 3; align-self: center; width: 40px; height: 40px; min-height: 0; padding: 0; justify-content: center; }
+.tela-baixa .em-etapas .btn-corrigir span { display: none; }
+.tela-baixa .em-etapas .produto-nome {
+    font-size: .92rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tela-baixa .em-etapas .produto-detalhe,
+.tela-baixa .em-etapas .produto-info:not([data-tipo="aviso"]) .produto-aviso { display: none; }
+
+.tela-baixa .em-etapas .campo-grupo { gap: 4px; }
+.tela-baixa .em-etapas .qtd-btn { min-height: 48px; width: 60px; }
+.tela-baixa .em-etapas .input-qtd { font-size: 1.5rem; padding: 2px 0; }
+.tela-baixa .em-etapas .input-unit { padding-top: 8px; padding-bottom: 8px; }
+.tela-baixa .em-etapas .qtd-atalhos { gap: 6px; margin-top: 0; grid-template-columns: repeat(auto-fit, minmax(38px, 1fr)); }
+.tela-baixa .em-etapas .qtd-atalho { min-height: 38px; font-size: .92rem; }
+.tela-baixa .em-etapas .campo-dica { display: none; }
+
+.tela-baixa .em-etapas .input-preco-field { font-size: 1.6rem !important; padding: 6px 12px 6px 6px !important; }
+.tela-baixa .em-etapas .subtotal-preview { padding: 4px 12px; font-size: .78rem; }
+.tela-baixa .em-etapas .subtotal-preview span { display: none; }
+.tela-baixa .em-etapas .subtotal-preview strong { font-size: 1rem; }
+.tela-baixa .em-etapas [data-etapa-campo="preco"]:not(.campo-preco) { display: none; }
+
+.tela-baixa .em-etapas .modal-acoes { gap: 6px; padding-top: 6px; }
+.tela-baixa .em-etapas .modal-acoes .btn-confirmar { padding: 12px; }
+.tela-baixa .em-etapas .btn-escanear-outro { padding: 10px; }
+.tela-baixa .em-etapas .modal-acoes .btn-cancelar { padding: 6px; }
+
+/* Teclado aberto: botões lado a lado. Voltar e Fechar saem, já que o X e o próprio
+   teclado resolvem, e o campo que está sendo preenchido continua à vista */
+.tela-mini .em-etapas .modal-acoes {
+    flex-direction: row;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+}
+.tela-mini .em-etapas .modal-acoes .btn-confirmar,
+.tela-mini .em-etapas .btn-escanear-outro {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
+    min-height: 46px;
+    padding: 6px;
+    font-size: .88rem;
+    line-height: 1.15;
+}
+.tela-mini .em-etapas .btn-escanear-outro .ico { display: none; }
+.tela-mini .em-etapas .modal-acoes .btn-cancelar { display: none; }
 
 .modal-acoes .btn-confirmar { flex: none; width: 100%; padding: 15px; font-size: 1.02rem; }
 

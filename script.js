@@ -29,6 +29,9 @@ let state = {
     categoriaManual: false, // o usuário escolheu a categoria: não trocar sozinho
     fluxoScanner:    false, // o formulário veio do leitor
     produtoFixo:     false, // nome ajustado à mão não desfaz o produto escolhido
+    etapasFluxo:     null,  // etapas do formulário; null = tela única, ao editar
+    etapa:           null,
+    tituloFixo:      '',    // substitui o título da etapa, como em "Já está na lista"
 };
 
 let deletedItem  = null;
@@ -54,6 +57,7 @@ function init() {
     bindScanner();
     bindTutorial();
     configurarBotaoVoltar();
+    acompanharTeclado();
     renderizar();
     atualizarCategoriasFiltro();
 
@@ -447,6 +451,7 @@ function unidadePrecoLabel(un) {
 
 // Atualiza preview do subtotal em tempo real
 function atualizarPreviewSubtotal() {
+    marcarAtalhoQuantidade();
     const preco   = getPrecoFloat();
     const qty     = parseFloat(document.getElementById('inputQuantidade').value) || 0;
     const un      = document.getElementById('inputUnidade').value;
@@ -496,25 +501,26 @@ function atualizarUIDaUnidade() {
 
     // Dica de peso aparece para g e kg
     dica.classList.toggle('hidden', un !== 'kg' && un !== 'g');
+    montarAtalhosQuantidade();
     atualizarPreviewSubtotal();
 }
 
 /* ================================================
    MODAL ADICIONAR / EDITAR
    ================================================ */
-function prepararFormulario({ titulo, botao }) {
+function prepararFormulario({ titulo, botao, etapas = null, tituloFixo = '' }) {
+    state.etapasFluxo = etapas;
+    state.tituloFixo  = tituloFixo;
     document.getElementById('modalTitulo').textContent       = titulo;
     document.getElementById('btnConfirmarModal').textContent = botao;
     document.getElementById('textoAdicionarEscanear').textContent = `${botao} e escanear outro`;
-    document.getElementById('btnAdicionarEscanear').classList.toggle('hidden', !state.fluxoScanner);
-    document.getElementById('btnCancelarModal').textContent  = state.fluxoScanner ? 'Fechar' : 'Cancelar';
     document.getElementById('inputNome').classList.remove('error');
     document.getElementById('dicaPreco').classList.add('hidden');
     state.produtoFixo = false;
     esconderSugestoes();
     mostrarProdutoInfo(null);
-    carregarBaseProdutos().then(atualizarSugestoes).catch(() => {});
     document.getElementById('modalBackdrop').classList.remove('hidden');
+    carregarBaseProdutos().then(atualizarSugestoes).catch(() => {});
 }
 
 function preencherCampos({ nome = '', quantidade = 1, unidade = 'un', preco = 0, categoria = 'Outros' }) {
@@ -526,16 +532,129 @@ function preencherCampos({ nome = '', quantidade = 1, unidade = 'un', preco = 0,
     atualizarUIDaUnidade();
 }
 
+/* ================================================
+   ETAPAS DO FORMULÁRIO
+   Uma pergunta por vez: produto, quantidade e preço. Quem vem do leitor já tem o
+   produto e começa direto na quantidade.
+   ================================================ */
+const TITULOS_ETAPA = {
+    produto:    'Qual é o produto?',
+    quantidade: 'Quantos vai levar?',
+    preco:      'Qual é o preço?',
+};
+
+const ATALHOS_QTD = {
+    kg: [0.5, 1, 1.5, 2, 3, 5],
+    L:  [0.5, 1, 1.5, 2, 3, 5],
+    g:  [100, 250, 500, 750, 1000],
+    ml: [100, 250, 500, 750, 1000],
+};
+const ATALHOS_QTD_PADRAO = [1, 2, 3, 4, 6, 12];
+
+function irParaEtapa(etapa) {
+    state.etapa = etapa;
+    const etapas   = state.etapasFluxo;
+    const posicao  = etapas ? etapas.indexOf(etapa) : -1;
+    const ultima   = !etapas || etapa === 'preco';
+    const mostrar  = (id, visivel) => document.getElementById(id).classList.toggle('hidden', !visivel);
+
+    document.querySelectorAll('#modal [data-etapa-campo]').forEach(el => {
+        el.classList.toggle('fora-da-etapa', !!etapas && el.dataset.etapaCampo !== etapa);
+    });
+    document.getElementById('modal').classList.toggle('em-etapas', !!etapas);
+
+    mostrar('btnProximo', !ultima);
+    mostrar('btnConfirmarModal', ultima);
+    mostrar('btnAdicionarEscanear', !!etapas && ultima);
+    mostrar('btnVoltarEtapa', posicao > 0);
+    mostrar('btnCancelarModal', posicao <= 0);
+    document.getElementById('btnCancelarModal').textContent = state.fluxoScanner ? 'Fechar' : 'Cancelar';
+
+    mostrar('etapaContador', !!etapas);
+    mostrar('etapaProgresso', !!etapas);
+    if (!etapas) return;
+
+    document.getElementById('modalTitulo').textContent  = state.tituloFixo && etapa === 'quantidade' ? state.tituloFixo : TITULOS_ETAPA[etapa];
+    document.getElementById('etapaContador').textContent = `Etapa ${posicao + 1} de ${etapas.length}`;
+    document.getElementById('etapaProgresso').innerHTML = etapas
+        .map((_, i) => `<span class="${i <= posicao ? 'feita' : ''}"></span>`)
+        .join('');
+
+    document.getElementById('modal').scrollTop = 0;
+    requestAnimationFrame(() => focarEtapa(etapa));
+}
+
+function focarEtapa(etapa) {
+    if (etapa === 'produto') {
+        document.getElementById('inputNome').focus();
+    } else if (etapa === 'preco') {
+        document.getElementById('inputPreco').focus();
+    } else {
+        // Na quantidade os botões bastam: sem teclado cobrindo a tela
+        document.getElementById('modalTitulo').focus({ preventScroll: true });
+    }
+}
+
+function avancarEtapa() {
+    const etapas = state.etapasFluxo;
+    if (!etapas) return;
+
+    if (state.etapa === 'produto') {
+        const input = document.getElementById('inputNome');
+        const nome  = input.value.trim();
+        if (!nome) {
+            input.classList.add('error');
+            input.focus();
+            setTimeout(() => input.classList.remove('error'), 1800);
+            return;
+        }
+        esconderSugestoes();
+        const produto = state.produtoAtual || {};
+        mostrarProdutoInfo({ nome, detalhe: produto.detalhe, imagem: produto.imagem, aviso: '' });
+    }
+
+    const proxima = etapas[etapas.indexOf(state.etapa) + 1];
+    if (proxima) irParaEtapa(proxima);
+}
+
+function voltarEtapa() {
+    const etapas = state.etapasFluxo;
+    if (!etapas) return;
+    const anterior = etapas[etapas.indexOf(state.etapa) - 1];
+    if (!anterior) return;
+    if (anterior === 'produto') mostrarProdutoInfo(null);
+    irParaEtapa(anterior);
+}
+
+function montarAtalhosQuantidade() {
+    const un = document.getElementById('inputUnidade').value;
+    const valores = ATALHOS_QTD[un] || ATALHOS_QTD_PADRAO;
+    document.getElementById('qtdAtalhos').innerHTML = valores
+        .map(v => `<button type="button" class="qtd-atalho" data-valor="${v}">${fmtQty(v)}</button>`)
+        .join('');
+    marcarAtalhoQuantidade();
+}
+
+function marcarAtalhoQuantidade() {
+    const atual = parseFloat(document.getElementById('inputQuantidade').value);
+    document.querySelectorAll('.qtd-atalho').forEach(b => {
+        const igual = parseFloat(b.dataset.valor) === atual;
+        b.classList.toggle('ativo', igual);
+        b.setAttribute('aria-pressed', String(igual));
+    });
+}
+
 function abrirAdicionar() {
     state.editandoId      = null;
     state.produtoAtual    = null;
     state.categoriaManual = false;
     state.fluxoScanner    = false;
-    prepararFormulario({ titulo: 'Adicionar Item', botao: 'Adicionar' });
+    prepararFormulario({ titulo: TITULOS_ETAPA.produto, botao: 'Adicionar', etapas: ['produto', 'quantidade', 'preco'] });
     preencherCampos({});
-    requestAnimationFrame(() => document.getElementById('inputNome').focus());
+    irParaEtapa('produto');
 }
 
+// Editar é ajuste rápido em algo que já existe: tudo na mesma tela
 function abrirEditar(id, campoFoco = 'inputNome') {
     const item = state.itens.find(i => i.id === id);
     if (!item) return;
@@ -545,6 +664,7 @@ function abrirEditar(id, campoFoco = 'inputNome') {
     state.fluxoScanner    = false;
     prepararFormulario({ titulo: 'Editar Item', botao: 'Salvar' });
     preencherCampos(item);
+    irParaEtapa(null);
     requestAnimationFrame(() => document.getElementById(campoFoco).focus());
 }
 
@@ -564,10 +684,10 @@ function mostrarProdutoInfo(info) {
     document.getElementById('btnCorrigirNome').classList.toggle('hidden', !temNome);
     if (!info) return;
 
-    const foto   = document.getElementById('produtoFoto');
-    const imagem = imagemSegura(info.imagem);
-    foto.classList.toggle('hidden', !imagem);
-    if (imagem) foto.src = imagem; else foto.removeAttribute('src');
+    // Só o aviso de código sem cadastro aparece sem o espaço da foto
+    document.getElementById('produtoFotoCaixa').classList.toggle('hidden', !temNome && !imagemSegura(info.imagem));
+    mostrarIconeProduto();
+    mostrarFotoProduto(imagemSegura(info.imagem));
 
     caixa.dataset.tipo = info.tipo || '';
     document.getElementById('produtoNome').textContent    = info.nome || '';
@@ -575,11 +695,31 @@ function mostrarProdutoInfo(info) {
     document.getElementById('produtoAviso').textContent   = info.aviso;
 }
 
+// O ícone da categoria fica por baixo: aparece enquanto a foto carrega, se ela falhar
+// ou se o produto não tiver foto
+function mostrarIconeProduto() {
+    document.getElementById('produtoFotoIcone').textContent =
+        CAT_EMOJI[document.getElementById('inputCategoria').value] || '📦';
+}
+
+function mostrarFotoProduto(imagem) {
+    const foto = document.getElementById('produtoFoto');
+    foto.classList.add('hidden');
+    if (imagem) foto.src = imagem;
+    else foto.removeAttribute('src');
+}
+
 function corrigirNome() {
+    state.produtoFixo = true;
+    if (state.etapasFluxo) {
+        if (!state.etapasFluxo.includes('produto')) state.etapasFluxo = ['produto', ...state.etapasFluxo];
+        mostrarProdutoInfo(null);
+        irParaEtapa('produto');
+        return;
+    }
     document.getElementById('campoNome').classList.remove('hidden');
     document.getElementById('btnCorrigirNome').classList.add('hidden');
     document.getElementById('produtoNome').textContent = '';
-    state.produtoFixo = true;
     document.getElementById('inputNome').focus();
 }
 
@@ -601,7 +741,11 @@ function abrirProdutoDoScanner(produto, situacao) {
     // Sem nome, a categoria ainda pode ser deduzida do que for digitado
     state.categoriaManual = temNome;
 
-    prepararFormulario({ titulo: temNome ? 'Quanto e por quanto?' : 'Adicionar Item', botao: 'Adicionar' });
+    prepararFormulario({
+        titulo: TITULOS_ETAPA[temNome ? 'quantidade' : 'produto'],
+        botao:  'Adicionar',
+        etapas: temNome ? ['quantidade', 'preco'] : ['produto', 'quantidade', 'preco'],
+    });
     preencherCampos(produto);
     mostrarProdutoInfo({
         nome:    produto.nome,
@@ -611,10 +755,7 @@ function abrirProdutoDoScanner(produto, situacao) {
         tipo:    temNome ? '' : 'aviso',
     });
     document.getElementById('dicaPreco').classList.toggle('hidden', !(produto.preco > 0));
-
-    // Vai direto para o que falta: o nome, se não veio, ou o valor
-    const campoFoco = !temNome ? 'inputNome' : (produto.preco > 0 ? '' : 'inputPreco');
-    if (campoFoco) requestAnimationFrame(() => document.getElementById(campoFoco).focus());
+    irParaEtapa(temNome ? 'quantidade' : 'produto');
 }
 
 // Escaneou o que já está na lista: mostra a quantidade + 1 para confirmar
@@ -625,7 +766,7 @@ function abrirRepetidoDoScanner(id) {
     state.produtoAtual    = dadosDoProduto(item);
     state.categoriaManual = true;
     state.fluxoScanner    = true;
-    prepararFormulario({ titulo: 'Já está na lista', botao: 'Salvar' });
+    prepararFormulario({ titulo: 'Já está na lista', botao: 'Salvar', etapas: ['quantidade', 'preco'], tituloFixo: 'Já está na lista' });
     preencherCampos({ ...item, quantidade: arredondarQtd(item.quantidade + passoQuantidade(item.unidade)) });
     mostrarProdutoInfo({
         nome:    item.nome,
@@ -633,6 +774,7 @@ function abrirRepetidoDoScanner(id) {
         detalhe: item.detalhe,
         imagem:  item.imagem,
     });
+    irParaEtapa('quantidade');
 }
 
 function escanearPeloFormulario() {
@@ -704,7 +846,19 @@ function escolherSugestao(p) {
     atualizarUIDaUnidade();
     esconderSugestoes();
 
-    // Produto de verdade ganha o cartão com foto, igual ao da leitura
+    // Nas etapas, escolher já responde a pergunta: segue para a quantidade
+    if (state.etapasFluxo) {
+        mostrarProdutoInfo({
+            nome:    p.nome,
+            detalhe: p.detalhe,
+            imagem:  p.imagem,
+            aviso:   p.fonte ? `Dados: ${p.fonte}` : '',
+        });
+        irParaEtapa('quantidade');
+        return;
+    }
+
+    // Na edição, produto de verdade ganha o cartão com foto
     if (p.codigo) {
         mostrarProdutoInfo({
             nome:    p.nome,
@@ -756,6 +910,8 @@ function fecharModal() {
     document.getElementById('modalBackdrop').classList.add('hidden');
     state.editandoId   = null;
     state.fluxoScanner = false;
+    state.etapasFluxo  = null;
+    state.etapa        = null;
     esconderSugestoes();
 }
 
@@ -1135,13 +1291,30 @@ function bindEvents() {
     document.getElementById('btnAdicionar').addEventListener('click', abrirAdicionar);
     document.getElementById('btnConfirmarModal').addEventListener('click', () => confirmarModal());
     document.getElementById('btnAdicionarEscanear').addEventListener('click', () => confirmarModal({ continuarEscaneando: true }));
+    document.getElementById('btnProximo').addEventListener('click', avancarEtapa);
+    document.getElementById('btnVoltarEtapa').addEventListener('click', voltarEtapa);
+    document.getElementById('qtdAtalhos').addEventListener('click', e => {
+        const atalho = e.target.closest('.qtd-atalho');
+        if (!atalho) return;
+        document.getElementById('inputQuantidade').value = atalho.dataset.valor;
+        atualizarPreviewSubtotal();
+    });
+    document.getElementById('inputQuantidade').addEventListener('keydown', e => {
+        if (e.key === 'Enter' && state.etapasFluxo) avancarEtapa();
+    });
     document.getElementById('btnEscanear').addEventListener('click', abrirScanner);
     document.getElementById('btnModalEscanear').addEventListener('click', escanearPeloFormulario);
     document.getElementById('btnCorrigirNome').addEventListener('click', corrigirNome);
     document.getElementById('btnQtdMenos').addEventListener('click', () => mudarQuantidadeForm(-1));
     document.getElementById('btnQtdMais').addEventListener('click', () => mudarQuantidadeForm(1));
     document.getElementById('inputNome').addEventListener('input', aoDigitarNome);
-    document.getElementById('inputCategoria').addEventListener('change', () => { state.categoriaManual = true; });
+    document.getElementById('inputCategoria').addEventListener('change', () => {
+        state.categoriaManual = true;
+        mostrarIconeProduto();
+    });
+    const fotoProduto = document.getElementById('produtoFoto');
+    fotoProduto.addEventListener('load', () => fotoProduto.classList.remove('hidden'));
+    fotoProduto.addEventListener('error', () => fotoProduto.classList.add('hidden'));
 
     // Tela de lista vazia
     document.getElementById('btnVaziaEscanear').addEventListener('click', abrirScanner);
@@ -1201,7 +1374,8 @@ function bindEvents() {
     document.getElementById('inputNome').addEventListener('keydown', e => {
         if (e.key === 'Enter') {
             esconderSugestoes();
-            document.getElementById('inputQuantidade').focus();
+            if (state.etapasFluxo) avancarEtapa();
+            else document.getElementById('inputQuantidade').focus();
         }
     });
 
@@ -1321,6 +1495,28 @@ function bindEvents() {
         if (!document.getElementById('confirmBackdrop').classList.contains('hidden'))  { fecharConfirm();        return; }
         if (!document.getElementById('liveShareBackdrop').classList.contains('hidden')){ fecharLiveShareModal(); return; }
     });
+}
+
+/* ================================================
+   TECLADO DO CELULAR
+   Mantém os formulários na parte visível da tela: sem isso, o teclado cobre os botões
+   nos navegadores que não redimensionam a página sozinhos. Com pouca altura, as etapas
+   entram no modo compacto, para o campo e os botões caberem juntos.
+   ================================================ */
+const ALTURA_COMPACTA = 680;
+const ALTURA_COM_TECLADO = 500;
+
+function acompanharTeclado() {
+    const tela = window.visualViewport;
+    if (!tela) return;
+    const ajustar = () => {
+        const raiz = document.documentElement;
+        raiz.style.setProperty('--altura-visivel', `${tela.height}px`);
+        raiz.classList.toggle('tela-baixa', tela.height < ALTURA_COMPACTA);
+        raiz.classList.toggle('tela-mini', tela.height < ALTURA_COM_TECLADO);
+    };
+    tela.addEventListener('resize', ajustar);
+    ajustar();
 }
 
 /* ================================================
