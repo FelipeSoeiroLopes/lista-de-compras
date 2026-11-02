@@ -8,7 +8,8 @@ const CAT_EMOJI = {
     'Laticínios':'🥛', 'Padaria':   '🍞', 'Bebidas':   '🥤',
     'Limpeza':   '🧹', 'Higiene':   '🧴', 'Congelados':'🧊',
     'Grãos':     '🌾', 'Temperos':  '🧂', 'Mercearia': '🥫',
-    'Outros':    '📦'
+    'Bebê':      '👶', 'Pet':       '🐾', 'Farmácia':  '💊',
+    'Casa':      '🏠', 'Outros':    '📦'
 };
 
 const STORAGE_KEY = 'lista-compras-v10';

@@ -81,7 +81,10 @@ function pararCamera() {
         leitor.stream = null;
     }
     document.getElementById('scannerVideo').srcObject = null;
-    document.getElementById('btnLanterna').classList.add('hidden');
+    // Sem câmera aberta não há lanterna, mas o botão fica no lugar para a tela não pular
+    const lanterna = document.getElementById('btnLanterna');
+    lanterna.classList.add('indisponivel');
+    lanterna.classList.remove('sem-suporte');
     leitor.lanterna = false;
     mostrarEstadoLanterna();
 }
@@ -90,7 +93,10 @@ function mostrarEstadoLanterna() {
     const botao = document.getElementById('btnLanterna');
     botao.classList.toggle('ativo', leitor.lanterna);
     botao.setAttribute('aria-pressed', String(leitor.lanterna));
-    document.getElementById('textoLanterna').textContent = leitor.lanterna ? 'Lanterna ligada' : 'Lanterna';
+    const semSuporte = botao.classList.contains('sem-suporte');
+    document.getElementById('iconeLanterna').setAttribute('href', semSuporte ? '#i-flash-off' : '#i-flash');
+    document.getElementById('textoLanterna').textContent =
+        leitor.lanterna ? 'Luz ligada' : (semSuporte ? 'Sem lanterna' : 'Lanterna');
 }
 
 function mensagemErroCamera(err) {
@@ -164,8 +170,9 @@ function configurarTrilha(trilha) {
     const botao = document.getElementById('btnLanterna');
 
     // Fica sempre à vista: se o aparelho não liberar a lanterna, o toque explica o motivo
-    botao.classList.remove('hidden');
-    botao.classList.toggle('indisponivel', !capacidades.torch);
+    botao.classList.remove('indisponivel');
+    botao.classList.toggle('sem-suporte', !capacidades.torch);
+    mostrarEstadoLanterna();
 
     if ((capacidades.focusMode || []).includes('continuous')) {
         trilha.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
@@ -177,7 +184,7 @@ async function alternarLanterna() {
     if (!trilha) return;
 
     const semLanterna = 'Este aparelho não libera a lanterna para o navegador. Tente em um lugar mais claro.';
-    if (document.getElementById('btnLanterna').classList.contains('indisponivel')) {
+    if (document.getElementById('btnLanterna').classList.contains('sem-suporte')) {
         mostrarStatusLeitor(semLanterna, 'erro');
         return;
     }

@@ -952,7 +952,11 @@ select.input-field {
     list-style: none;
     border: 1.5px solid var(--border);
     border-radius: var(--r-md);
-    overflow: hidden;
+    /* Lista longa rola por dentro: o resto do formulário continua no lugar */
+    max-height: min(46vh, 340px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     background: var(--surface);
 }
 
@@ -1317,16 +1321,88 @@ select.input-field {
 
 /* ================================================
    LEITOR DE CÓDIGO DE BARRAS
+   Barras sólidas em cima e embaixo, com a câmera numa área própria no meio:
+   botões e textos ficam iguais em qualquer ambiente, sem depender da imagem.
    ================================================ */
 .scanner {
+    --scanner-fundo: #0a1d40;
+    --scanner-linha: rgba(255,255,255,.5);
     position: fixed;
     inset: 0;
     z-index: 250;
-    background: #06101f;
+    background: var(--scanner-fundo);
     color: #fff;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+}
+
+.scanner-topo {
+    position: relative;
+    z-index: 2;
+    flex-shrink: 0;
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    padding: calc(10px + env(safe-area-inset-top, 0px)) calc(12px + env(safe-area-inset-right, 0px)) 10px calc(12px + env(safe-area-inset-left, 0px));
+    background: var(--scanner-fundo);
+    box-shadow: 0 2px 10px rgba(0,0,0,.35);
+}
+
+.scanner-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    height: clamp(52px, 7.5vh, 62px);
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 2px solid #fff;
+    border-radius: var(--r-md);
+    color: #0a1d40;
+    background: #fff;
+    font-size: clamp(.95rem, 4.4vw, 1.2rem);
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background var(--t), color var(--t), border-color var(--t), transform var(--t);
+}
+
+.scanner-btn .ico {
+    width: 1.5em;
+    height: 1.5em;
+    stroke-width: 2.6;
+}
+
+.scanner-btn:active { transform: scale(.97); }
+.scanner-btn:focus-visible { outline-color: #ffd54a; }
+
+.scanner-btn.ativo {
+    border-color: #ffd54a;
+    background: #ffd54a;
+    box-shadow: 0 0 16px rgba(255,213,74,.7);
+}
+
+.scanner-btn.ativo .ico { fill: #0a1d40; }
+
+/* Sem câmera aberta ou sem lanterna: legível, mas claramente não é a ação disponível */
+.scanner-btn.indisponivel,
+.scanner-btn.sem-suporte {
+    color: #fff;
+    background: transparent;
+    border-color: var(--scanner-linha);
+}
+
+.scanner-palco {
+    position: relative;
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: #000;
 }
 
 .scanner-video {
@@ -1337,62 +1413,24 @@ select.input-field {
     object-fit: cover;
 }
 
-.scanner.sem-camera .scanner-video,
-.scanner.sem-camera .scanner-mira { display: none; }
+.scanner.sem-camera .scanner-palco,
+.scanner.sem-camera #btnLanterna { display: none; }
 
 .scanner.buscando .scanner-video { opacity: .35; }
 .scanner.buscando .scanner-laser { animation: none; opacity: 0; }
 .scanner.buscando .scanner-manual,
 .scanner.buscando .scanner-foto { display: none; }
 
-.scanner-topo {
-    position: relative;
-    /* Acima da sombra da mira, que escurece todo o resto da tela */
-    z-index: 2;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px;
-}
-
-/* Fundo sólido: precisa aparecer sobre qualquer imagem da câmera */
-.scanner-btn {
-    height: 48px;
-    padding: 0 18px 0 14px;
-    border: none;
-    border-radius: var(--r-full);
-    color: #0f2342;
-    background: #fff;
-    font-size: .98rem;
-    font-weight: 700;
-    white-space: nowrap;
-    cursor: pointer;
-    box-shadow: 0 3px 12px rgba(0,0,0,.45);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    transition: background var(--t), transform var(--t);
-}
-
-.scanner-btn .ico { font-size: 1.1rem; stroke-width: 2.5; }
-.scanner-btn:active { transform: scale(.96); }
-
-.scanner-btn.ativo { background: #ffd54a; box-shadow: 0 0 18px rgba(255,213,74,.75); }
-.scanner-btn.ativo .ico { fill: #0f2342; }
-.scanner-btn.indisponivel { color: #5b6b85; background: rgba(255,255,255,.72); }
-
-/* A sombra gigante escurece tudo fora da mira */
+/* A sombra gigante escurece a imagem fora da mira */
 .scanner-mira {
     position: relative;
-    width: min(82vw, 440px);
-    height: min(42vw, 200px);
-    margin: auto;
+    width: min(84%, 480px);
+    aspect-ratio: 2 / 1;
+    max-height: 72%;
     border-radius: var(--r-lg);
     border: 3px solid #fff;
-    box-shadow: 0 0 0 200vmax rgba(4,12,28,.55);
+    box-shadow: 0 0 0 200vmax rgba(4,12,28,.5);
     overflow: hidden;
-    flex-shrink: 0;
 }
 
 .scanner-laser {
@@ -1412,25 +1450,30 @@ select.input-field {
 
 .scanner-painel {
     position: relative;
+    z-index: 2;
+    flex-shrink: 0;
     display: flex;
     flex-direction: column;
     gap: 10px;
     width: 100%;
-    max-width: 520px;
-    margin: 0 auto;
-    padding: 12px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    padding: 12px calc(12px + env(safe-area-inset-right, 0px)) calc(14px + env(safe-area-inset-bottom, 0px)) calc(12px + env(safe-area-inset-left, 0px));
+    background: var(--scanner-fundo);
 }
 
-/* Sem câmera, o painel sobe para o meio da tela */
-.scanner.sem-camera .scanner-painel { margin: auto; }
+/* Sem câmera, o painel ocupa o espaço e centraliza o conteúdo */
+.scanner.sem-camera .scanner-painel,
+.scanner.buscando .scanner-painel { justify-content: center; }
+.scanner.sem-camera .scanner-painel { flex: 1 1 auto; }
 
 .scanner-status {
     min-height: 2.6em;
-    font-size: 1rem;
+    font-size: clamp(1rem, 4.2vw, 1.15rem);
     font-weight: 600;
     line-height: 1.3;
     text-align: center;
-    text-shadow: 0 1px 4px rgba(0,0,0,.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .scanner-status[data-tipo="erro"] { color: #ffe08a; }
@@ -1440,44 +1483,88 @@ select.input-field {
 .scanner-manual input {
     flex: 1;
     min-width: 0;
-    border: 1.5px solid rgba(255,255,255,.35);
-    background: rgba(0,0,0,.45);
+    height: 50px;
+    border: 2px solid var(--scanner-linha);
+    background: rgba(255,255,255,.1);
     color: #fff;
     font-family: var(--font);
     font-size: 16px;
-    padding: 12px 14px;
+    padding: 0 14px;
     border-radius: var(--r-md);
     outline: none;
     font-variant-numeric: tabular-nums;
 }
 
-.scanner-manual input::placeholder { color: rgba(255,255,255,.75); }
+.scanner-manual input::placeholder { color: #d5e0f2; opacity: 1; }
 .scanner-manual input:focus { border-color: #fff; }
 
 .scanner-enviar {
+    flex-shrink: 0;
+    height: 50px;
+    padding: 0 20px;
     border: none;
-    color: var(--on-accent);
-    background: var(--accent);
-    font-size: .95rem;
+    color: #fff;
+    background: #1466e6;
+    font-size: 1rem;
     font-weight: 700;
-    padding: 0 18px;
     border-radius: var(--r-md);
     cursor: pointer;
 }
 
 .scanner-foto {
+    flex-shrink: 0;
+    height: 50px;
+    padding: 0 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    padding: 12px;
     color: #fff;
-    background: rgba(0,0,0,.45);
-    border: 1.5px solid rgba(255,255,255,.35);
-    font-size: .95rem;
+    background: transparent;
+    border: 2px solid var(--scanner-linha);
+    font-size: 1rem;
     font-weight: 600;
+    white-space: nowrap;
     border-radius: var(--r-md);
     cursor: pointer;
+}
+
+/* Conteúdo centralizado em telas largas */
+@media (min-width: 640px) {
+    .scanner-topo,
+    .scanner-painel {
+        padding-left: max(16px, calc((100% - 560px) / 2));
+        padding-right: max(16px, calc((100% - 560px) / 2));
+    }
+}
+
+/* Celular deitado: pouca altura, então tudo em uma linha para sobrar câmera */
+@media (max-height: 520px) and (orientation: landscape) {
+    .scanner-topo { padding-top: calc(6px + env(safe-area-inset-top, 0px)); padding-bottom: 6px; }
+    .scanner-btn { height: 44px; font-size: 1rem; }
+    .scanner-painel {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 8px;
+        padding-top: 6px;
+        padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    }
+    .scanner-status { flex: 1 0 100%; min-height: 0; font-size: .95rem; }
+    .scanner-manual { flex: 1 1 0; min-width: 0; }
+    .scanner-manual input, .scanner-enviar, .scanner-foto { height: 44px; }
+}
+
+/* Telas estreitas: ícone e espaços menores para o texto nunca encostar na borda */
+@media (max-width: 345px) {
+    .scanner-topo { gap: 8px; padding-left: 10px; padding-right: 10px; }
+    .scanner-btn { gap: 5px; padding: 0 4px; font-size: .92rem; }
+    .scanner-btn .ico { width: 1.3em; height: 1.3em; }
+}
+
+@media (max-width: 300px) {
+    .scanner-btn { font-size: .86rem; }
+    .scanner-enviar { padding: 0 12px; }
 }
 
 /* ================================================

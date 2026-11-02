@@ -37,13 +37,14 @@ Crie a lista em casa, compartilhe um código com quem está no mercado e acompan
 |---|---|
 | 📷 **Escanear código de barras** | A câmera lê o código, o nome e a foto vêm sozinhos e você só informa quantidade e valor. Também aceita foto ou o código digitado |
 | 🧠 **Memória de produtos** | Lembra neste aparelho o que você já comprou, com o último preço. Funciona sem internet |
-| 🔎 **Busca por nome ou marca** | Digite "fini morango" e escolha entre mais de 42 mil produtos do Brasil, com foto. Funciona sem internet |
+| 🔎 **Busca por nome ou marca** | Cobre a compra do mês inteiro: mais de 42 mil produtos do Brasil, além de itens e marcas de higiene, limpeza, bebê, pet, farmácia e casa. Entende sinônimos e erros de digitação, e funciona sem internet |
+| 📲 **Instalável** | Pelo Chrome, no celular ou no computador: menu ⋮ → "Instalar o app". Depois de instalado, abre mesmo sem internet |
 | 🎓 **Tutorial guiado** | Abre na primeira visita e pode ser revisto no botão "?" |
 | ➕ **Adicionar itens** | Modal moderno — nome, quantidade, unidade, preço e categoria |
 | ✅ **Marcar como pego** | Toque no item para marcar/desmarcar. Borda verde + riscado |
 | 🔗 **Compartilhamento ao vivo** | Gera código de 6 chars — qualquer pessoa com o link vê e edita em tempo real via Firestore |
 | 🟢 **Badge ao vivo** | Indicador no header com animação pulse enquanto a lista está compartilhada |
-| 🏷️ **13 categorias** | Frutas, Carnes, Laticínios, Bebidas, Mercearia, Limpeza e mais |
+| 🏷️ **17 categorias** | Frutas, Carnes, Laticínios, Bebidas, Mercearia, Limpeza, Higiene, Bebê, Pet, Farmácia, Casa e mais |
 | 🔍 **Busca em tempo real** | Encontre qualquer item enquanto digita |
 | 🔽 **Filtros de status** | Todos / Pendentes / Pegos — foco no que ainda falta |
 | 🗂️ **Filtros por categoria** | Chips clicáveis para navegar por seção do mercado |

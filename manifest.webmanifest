@@ -1,0 +1,19 @@
+{
+    "name": "Lista Prática",
+    "short_name": "Lista Prática",
+    "description": "Seu mercado organizado: escaneie produtos, controle valores e compartilhe a lista.",
+    "id": "./",
+    "start_url": "./",
+    "scope": "./",
+    "display": "standalone",
+    "orientation": "any",
+    "lang": "pt-BR",
+    "background_color": "#f2f6fd",
+    "theme_color": "#0a46b8",
+    "categories": ["shopping", "lifestyle", "productivity"],
+    "icons": [
+        { "src": "image/icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+        { "src": "image/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+        { "src": "image/icone-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    ]
+}
