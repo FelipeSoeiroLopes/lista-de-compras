@@ -1,0 +1,47 @@
+rules_version = '2';
+
+// Quem protege os dados são estas regras: a configuração do Firebase precisa chegar
+// ao navegador, então nunca é um segredo de verdade.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function ehAdmin() {
+      return request.auth != null
+        && request.auth.token.email == 'admin@listapratica.app';
+    }
+
+    // O identificador tem 24 caracteres aleatórios: quem tem o link consegue abrir
+    // a lista, e ninguém consegue adivinhar outra.
+    function identificadorForte(codigo) {
+      return codigo.size() >= 24;
+    }
+
+    match /listas/{codigo} {
+      // Abrir uma lista conhecida sim, listar todas nunca
+      allow get: if identificadorForte(codigo);
+      allow list: if false;
+
+      // Só o admin cria e encerra listas
+      allow create: if ehAdmin()
+        && identificadorForte(codigo)
+        && request.resource.data.keys().hasOnly(['itens', 'criadoEm'])
+        && itensValidos();
+      allow delete: if ehAdmin();
+
+      // Quem tem o link edita apenas os itens
+      allow update: if identificadorForte(codigo)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['itens', 'atualizadoEm'])
+        && itensValidos();
+
+      function itensValidos() {
+        return request.resource.data.itens is list
+          && request.resource.data.itens.size() <= 500;
+      }
+    }
+
+    // Todo o resto do banco fica fechado
+    match /{documento=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -3,28 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#4f46e5">
+    <meta name="theme-color" content="#0a46b8" id="metaTema">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Lista de Compras</title>
+    <title>Lista Prática</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="image/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="image/icone-192.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="image/apple-touch-icon.png">
+    <script>
+        // Quem já entrou não vê a tela de login piscar enquanto os scripts carregam
+        try {
+            const temLink = new URLSearchParams(location.search).has('c') && location.hash.includes('k=');
+            if (temLink || localStorage.getItem('lista-compras-sessao-v1')) document.documentElement.classList.add('logado');
+        } catch (_) {}
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+
+    <!-- LOGIN -->
+    <div class="login" id="login">
+        <form class="login-card" id="loginForm" autocomplete="on">
+            <img class="login-logo" src="image/logo.png" alt="Lista Prática: seu mercado organizado" width="660" height="612">
+
+            <div class="campo-grupo">
+                <label class="campo-label" for="loginUsuario">Login</label>
+                <input class="input-field" type="text" id="loginUsuario" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
+            </div>
+
+            <div class="campo-grupo">
+                <label class="campo-label" for="loginSenha">Senha</label>
+                <div class="senha-wrapper">
+                    <input class="input-field" type="password" id="loginSenha" autocomplete="current-password" required>
+                    <button type="button" class="btn-ver-senha" id="btnVerSenha" aria-pressed="false">Mostrar</button>
+                </div>
+            </div>
+
+            <p class="login-erro hidden" id="loginErro" role="alert"></p>
+
+            <button type="submit" class="btn-confirmar btn-entrar" id="btnEntrar">Entrar</button>
+        </form>
+    </div>
+
+    <!-- ÍCONES -->
+    <svg class="hidden" aria-hidden="true">
+        <defs>
+            <symbol id="i-barcode" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 8v8M11 8v8M14 8v8M17 8v8"/></symbol>
+            <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+            <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+            <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></symbol>
+            <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+            <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+            <symbol id="i-menu" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></symbol>
+            <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.6 2.6 0 0 1 5 .8c0 1.7-2.5 2.2-2.5 3.8M12 17.2v.1"/></symbol>
+            <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17z"/><path d="m14 8 3 3"/></symbol>
+            <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5"/></symbol>
+            <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 6 .4l3-3a4 4 0 0 0-5.7-5.7l-1.3 1.3"/><path d="M14 10a4 4 0 0 0-6-.4l-3 3a4 4 0 0 0 5.7 5.7l1.3-1.3"/></symbol>
+            <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4M5 13v6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-6"/></symbol>
+            <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></symbol>
+            <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M5 19l1.4-1.4M17.6 6.4 19 5"/></symbol>
+            <symbol id="i-sort" viewBox="0 0 24 24"><path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"/></symbol>
+            <symbol id="i-broom" viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/><path d="M4 21h16"/></symbol>
+            <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></symbol>
+            <symbol id="i-sair" viewBox="0 0 24 24"><path d="M10 4H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4M15 8l4 4-4 4M19 12H10"/></symbol>
+            <symbol id="i-flash" viewBox="0 0 24 24"><path d="M13 3 5 14h6l-1 7 8-11h-6z"/></symbol>
+        </defs>
+    </svg>
 
     <!-- HEADER -->
     <header class="header">
         <div class="header-top">
             <div class="header-title">
-                <span class="header-icon">🛒</span>
-                <h1>Lista de Compras</h1>
+                <img class="header-logo" src="image/logo-icone.png" alt="" width="96" height="96">
+                <h1>Lista Prática</h1>
             </div>
             <div class="header-btns">
-                <button class="icon-btn live-btn hidden" id="btnLiveBadge" title="Lista ao vivo">🟢 <span id="liveCode"></span></button>
-                <button class="icon-btn" id="btnLiveShare" title="Compartilhar ao vivo">🔗</button>
-                <button class="icon-btn" id="btnCompartilhar" title="Compartilhar via WhatsApp">📤</button>
-                <button class="icon-btn" id="btnTema" title="Alternar tema">🌙</button>
+                <button class="icon-btn live-btn hidden" id="btnLiveBadge" title="Lista ao vivo"><span class="live-ponto"></span><span id="liveCode"></span></button>
+                <button class="icon-btn" id="btnAjuda" title="Como usar" aria-label="Como usar"><svg class="ico"><use href="#i-help"/></svg></button>
+                <button class="icon-btn" id="btnMenu" title="Mais opções" aria-label="Mais opções"><svg class="ico"><use href="#i-menu"/></svg></button>
             </div>
         </div>
         <div class="header-progress">
@@ -39,17 +98,17 @@
     </header>
 
     <!-- BUSCA + FILTROS (fixos) -->
-    <div class="sticky-controls">
+    <div class="sticky-controls" id="controles">
         <div class="search-wrapper">
-            <span class="search-icon">🔍</span>
-            <input type="text" id="buscaInput" placeholder="Buscar item..." autocomplete="off">
-            <button class="search-clear hidden" id="btnLimparBusca">✕</button>
+            <svg class="ico search-icon"><use href="#i-search"/></svg>
+            <input type="text" id="buscaInput" placeholder="Buscar na lista..." autocomplete="off" aria-label="Buscar na lista">
+            <button class="search-clear hidden" id="btnLimparBusca" aria-label="Limpar busca"><svg class="ico"><use href="#i-x"/></svg></button>
         </div>
 
         <div class="filtros-status">
             <button class="filtro-btn active" data-filtro="todos">Todos</button>
-            <button class="filtro-btn" data-filtro="pendentes">Pendentes</button>
-            <button class="filtro-btn" data-filtro="pegos">Pegos ✓</button>
+            <button class="filtro-btn" data-filtro="pendentes">Faltam</button>
+            <button class="filtro-btn" data-filtro="pegos">Pegos</button>
         </div>
 
         <div class="categorias-scroll" id="categoriasFiltro">
@@ -57,91 +116,162 @@
         </div>
     </div>
 
-    <!-- TOOLBAR -->
-    <div class="toolbar">
-        <select id="ordenacao" class="sort-select">
-            <option value="ordem">↕ Ordem de adição</option>
-            <option value="nome">A–Z Nome</option>
-            <option value="categoria">Categoria</option>
-            <option value="preco-asc">Preço ↑</option>
-            <option value="preco-desc">Preço ↓</option>
-        </select>
-        <div class="toolbar-actions">
-            <button id="btnLimparPegos" class="btn-sm">Limpar pegos</button>
-            <button id="btnLimparTudo" class="btn-sm btn-danger">Limpar tudo</button>
-        </div>
-    </div>
-
     <!-- LISTA -->
-    <main class="main-content">
+    <main class="main-content" id="areaLista">
         <ul id="listaCompras"></ul>
+
         <div class="lista-vazia hidden" id="listaVazia">
-            <div class="vazia-icon">🛒</div>
-            <p class="vazia-titulo">Lista vazia!</p>
-            <p class="vazia-sub">Toque em <strong>+</strong> para adicionar itens</p>
+            <div class="vazia-sacola" aria-hidden="true">
+                <svg class="ico"><use href="#i-barcode"/></svg>
+            </div>
+            <p class="vazia-titulo">Sua lista está vazia</p>
+            <p class="vazia-sub">Escaneie um produto ou digite o nome. O app preenche o resto.</p>
+            <div class="vazia-acoes">
+                <button class="btn-vazia btn-vazia-principal" id="btnVaziaEscanear"><svg class="ico"><use href="#i-barcode"/></svg>Escanear produto</button>
+                <button class="btn-vazia" id="btnVaziaDigitar"><svg class="ico"><use href="#i-plus"/></svg>Digitar item</button>
+            </div>
+            <button class="btn-link" id="btnVaziaTutorial">Ver como funciona</button>
+        </div>
+
+        <div class="lista-vazia hidden" id="semResultado">
+            <p class="vazia-titulo">Nada encontrado</p>
+            <p class="vazia-sub">Nenhum item combina com a busca ou os filtros.</p>
+            <button class="btn-link" id="btnLimparFiltros">Limpar filtros</button>
         </div>
     </main>
 
     <!-- FOOTER FIXO -->
     <footer class="footer">
-        <div class="footer-total">
+        <div class="footer-total" id="areaTotal">
             <span class="total-label">Total estimado</span>
             <span class="total-valor" id="totalValor">R$ 0,00</span>
+            <span class="total-detalhe" id="totalDetalhe"></span>
         </div>
-        <button class="fab" id="btnAdicionar" title="Adicionar item">+</button>
+        <div class="footer-acoes">
+            <button class="btn-escanear" id="btnEscanear" title="Escanear código de barras">
+                <svg class="ico"><use href="#i-barcode"/></svg>
+                <span>Escanear</span>
+            </button>
+            <button class="fab" id="btnAdicionar" title="Adicionar item" aria-label="Adicionar item"><svg class="ico"><use href="#i-plus"/></svg></button>
+        </div>
     </footer>
+
+    <!-- MENU DE OPÇÕES -->
+    <div class="modal-backdrop hidden" id="menuBackdrop">
+        <div class="modal menu-modal" role="dialog" aria-modal="true" aria-labelledby="menuTitulo">
+            <div class="modal-header">
+                <h3 id="menuTitulo">Mais opções</h3>
+                <button class="modal-close" id="btnFecharMenu" aria-label="Fechar"><svg class="ico"><use href="#i-x"/></svg></button>
+            </div>
+
+            <p class="menu-grupo">Compartilhar</p>
+            <button class="menu-item so-admin" id="btnLiveShare"><svg class="ico"><use href="#i-link"/></svg><span><strong>Lista ao vivo</strong><small>Várias pessoas editando em tempo real</small></span></button>
+            <button class="menu-item" id="btnCompartilhar"><svg class="ico"><use href="#i-share"/></svg><span><strong>Enviar como texto</strong><small>Para WhatsApp e outros apps</small></span></button>
+
+            <p class="menu-grupo">Lista</p>
+            <label class="menu-item menu-select">
+                <svg class="ico"><use href="#i-sort"/></svg>
+                <span><strong>Ordenar por</strong></span>
+                <select id="ordenacao" class="sort-select">
+                    <option value="ordem">Ordem de adição</option>
+                    <option value="nome">Nome (A–Z)</option>
+                    <option value="categoria">Categoria</option>
+                    <option value="preco-asc">Menor valor</option>
+                    <option value="preco-desc">Maior valor</option>
+                </select>
+            </label>
+            <button class="menu-item" id="btnLimparPegos"><svg class="ico"><use href="#i-broom"/></svg><span><strong>Remover itens pegos</strong></span></button>
+            <button class="menu-item menu-perigo so-admin" id="btnLimparTudo"><svg class="ico"><use href="#i-trash"/></svg><span><strong>Apagar a lista inteira</strong></span></button>
+
+            <p class="menu-grupo">Aparência</p>
+            <button class="menu-item" id="btnTema"><svg class="ico"><use id="iconeTema" href="#i-moon"/></svg><span><strong id="textoTema">Tema escuro</strong></span></button>
+
+            <p class="menu-grupo so-admin">Conta</p>
+            <button class="menu-item so-admin" id="btnSair"><svg class="ico"><use href="#i-sair"/></svg><span><strong>Sair</strong></span></button>
+
+            <p class="menu-creditos">
+                Dados de produtos: <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> e bases irmãs (licença ODbL).
+            </p>
+        </div>
+    </div>
 
     <!-- MODAL ADICIONAR / EDITAR -->
     <div class="modal-backdrop hidden" id="modalBackdrop">
         <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitulo">
             <div class="modal-header">
                 <h3 id="modalTitulo">Adicionar Item</h3>
-                <button class="modal-close" id="btnFecharModal" aria-label="Fechar">✕</button>
+                <button class="modal-close" id="btnFecharModal" aria-label="Fechar"><svg class="ico"><use href="#i-x"/></svg></button>
             </div>
             <div class="modal-body">
-                <input
-                    type="text"
-                    id="inputNome"
-                    placeholder="Nome do item *"
-                    class="input-field"
-                    autocapitalize="words"
-                    autocomplete="off"
-                    maxlength="80"
-                >
+                <!-- Produto vindo do código de barras -->
+                <div class="produto-info hidden" id="produtoInfo">
+                    <img class="produto-foto hidden" id="produtoFoto" alt="" referrerpolicy="no-referrer">
+                    <div class="produto-textos">
+                        <p class="produto-nome" id="produtoNome"></p>
+                        <p class="produto-detalhe" id="produtoDetalhe"></p>
+                        <p class="produto-aviso" id="produtoAviso"></p>
+                        <button type="button" class="btn-link btn-corrigir hidden" id="btnCorrigirNome">Corrigir nome</button>
+                    </div>
+                </div>
+
+                <div class="campo-grupo campo-nome" id="campoNome">
+                    <label class="campo-label" for="inputNome">Produto</label>
+                    <div class="nome-row">
+                        <input
+                            type="text"
+                            id="inputNome"
+                            placeholder="Ex: banana, arroz, Fini"
+                            class="input-field"
+                            autocapitalize="sentences"
+                            autocomplete="off"
+                            maxlength="80"
+                            role="combobox"
+                            aria-expanded="false"
+                            aria-controls="sugestoes"
+                        >
+                        <button class="btn-nome-scan" id="btnModalEscanear" title="Escanear código de barras" aria-label="Escanear código de barras"><svg class="ico"><use href="#i-barcode"/></svg></button>
+                    </div>
+                    <ul class="sugestoes hidden" id="sugestoes" role="listbox"></ul>
+                </div>
 
                 <!-- QUANTIDADE + UNIDADE -->
                 <div class="campo-grupo">
-                    <label class="campo-label">Quantidade</label>
+                    <label class="campo-label" for="inputQuantidade">Quantidade</label>
                     <div class="input-row">
-                        <input
-                            type="number"
-                            id="inputQuantidade"
-                            placeholder="Ex: 1.4"
-                            value="1"
-                            min="0.01"
-                            step="0.1"
-                            class="input-field input-qtd"
-                        >
-                        <select id="inputUnidade" class="input-field input-unit">
-                            <option value="un">un  — unidade</option>
-                            <option value="kg">kg  — quilograma</option>
-                            <option value="g">g   — grama</option>
-                            <option value="L">L   — litro</option>
-                            <option value="ml">ml  — mililitro</option>
-                            <option value="pct">pct — pacote</option>
-                            <option value="cx">cx  — caixa</option>
-                            <option value="dz">dz  — dúzia</option>
+                        <div class="qtd-stepper">
+                            <button type="button" class="qtd-btn" id="btnQtdMenos" aria-label="Diminuir quantidade"><svg class="ico"><use href="#i-minus"/></svg></button>
+                            <input
+                                type="number"
+                                id="inputQuantidade"
+                                placeholder="1"
+                                value="1"
+                                min="0.01"
+                                step="0.1"
+                                inputmode="decimal"
+                                class="input-qtd"
+                            >
+                            <button type="button" class="qtd-btn" id="btnQtdMais" aria-label="Aumentar quantidade"><svg class="ico"><use href="#i-plus"/></svg></button>
+                        </div>
+                        <select id="inputUnidade" class="input-field input-unit" aria-label="Unidade">
+                            <option value="un">un</option>
+                            <option value="kg">kg</option>
+                            <option value="g">g</option>
+                            <option value="L">L</option>
+                            <option value="ml">ml</option>
+                            <option value="pct">pct</option>
+                            <option value="cx">cx</option>
+                            <option value="dz">dz</option>
                         </select>
                     </div>
                     <!-- dica dinâmica: aparece quando unidade é kg ou g -->
                     <p class="campo-dica hidden" id="dicaKg">
-                        💡 <strong>1 kg e 400g</strong> → digite <strong>1.4</strong> em kg &nbsp;|&nbsp; ou <strong>1400</strong> em g
+                        <strong>1 kg e 400 g</strong> → digite <strong>1.4</strong> em kg, ou <strong>1400</strong> em g
                     </p>
                 </div>
 
                 <!-- PREÇO (máscara estilo caixa eletrônico) -->
                 <div class="campo-grupo">
-                    <label class="campo-label" id="labelPreco">Preço por unidade (opcional)</label>
+                    <label class="campo-label" id="labelPreco" for="inputPreco">Preço por unidade (opcional)</label>
                     <div class="preco-wrapper">
                         <span class="preco-rs">R$</span>
                         <input
@@ -153,25 +283,31 @@
                             autocomplete="off"
                         >
                     </div>
+                    <p class="campo-dica hidden" id="dicaPreco">Último preço que você usou. Confira na etiqueta.</p>
                     <!-- Preview do subtotal em tempo real -->
                     <div class="subtotal-preview hidden" id="subtotalPreview"></div>
                 </div>
 
-                <select id="inputCategoria" class="input-field">
-                    <option value="Outros">📦 Outros</option>
-                    <option value="Frutas">🍎 Frutas</option>
-                    <option value="Verduras">🥦 Verduras</option>
-                    <option value="Carnes">🥩 Carnes</option>
-                    <option value="Laticínios">🥛 Laticínios</option>
-                    <option value="Padaria">🍞 Padaria</option>
-                    <option value="Bebidas">🥤 Bebidas</option>
-                    <option value="Limpeza">🧹 Limpeza</option>
-                    <option value="Higiene">🧴 Higiene</option>
-                    <option value="Congelados">🧊 Congelados</option>
-                    <option value="Grãos">🌾 Grãos</option>
-                    <option value="Temperos">🧂 Temperos</option>
-                </select>
+                <div class="campo-grupo">
+                    <label class="campo-label" for="inputCategoria">Categoria</label>
+                    <select id="inputCategoria" class="input-field">
+                        <option value="Outros">📦 Outros</option>
+                        <option value="Frutas">🍎 Frutas</option>
+                        <option value="Verduras">🥦 Verduras</option>
+                        <option value="Carnes">🥩 Carnes</option>
+                        <option value="Laticínios">🥛 Laticínios</option>
+                        <option value="Padaria">🍞 Padaria</option>
+                        <option value="Bebidas">🥤 Bebidas</option>
+                        <option value="Mercearia">🥫 Mercearia</option>
+                        <option value="Limpeza">🧹 Limpeza</option>
+                        <option value="Higiene">🧴 Higiene</option>
+                        <option value="Congelados">🧊 Congelados</option>
+                        <option value="Grãos">🌾 Grãos</option>
+                        <option value="Temperos">🧂 Temperos</option>
+                    </select>
+                </div>
             </div>
+            <button class="btn-confirmar btn-continuar hidden" id="btnAdicionarEscanear">Adicionar e escanear outro</button>
             <div class="modal-footer-btns">
                 <button class="btn-cancelar" id="btnCancelarModal">Cancelar</button>
                 <button class="btn-confirmar" id="btnConfirmarModal">Adicionar</button>
@@ -194,25 +330,63 @@
     <div class="modal-backdrop hidden" id="liveShareBackdrop">
         <div class="modal live-share-modal">
             <div class="modal-header">
-                <h3>🔗 Compartilhar ao vivo</h3>
-                <button class="modal-close" id="btnFecharLiveShare">✕</button>
+                <h3>Compartilhar ao vivo</h3>
+                <button class="modal-close" id="btnFecharLiveShare" aria-label="Fechar"><svg class="ico"><use href="#i-x"/></svg></button>
             </div>
             <div class="live-share-body">
-                <p class="live-share-desc">Qualquer pessoa com este código abre a mesma lista e vê as atualizações em tempo real.</p>
-
-                <div class="live-code-box">
-                    <span class="live-code-label">Código</span>
-                    <span class="live-code-valor" id="liveCodeDisplay">------</span>
-                </div>
+                <p class="live-share-desc">Quem tiver este link abre a lista sem login e pode editar os itens em tempo real. Envie só para quem você confia.</p>
 
                 <div class="live-link-box" id="liveLinkBox"></div>
 
                 <div class="live-share-btns">
-                    <button class="btn-live-copiar" id="btnCopiarLive">📋 Copiar link</button>
-                    <button class="btn-live-wpp" id="btnWppLive">📱 WhatsApp</button>
+                    <button class="btn-live-copiar" id="btnCopiarLive">Copiar link</button>
+                    <button class="btn-live-wpp" id="btnWppLive">WhatsApp</button>
                 </div>
 
-                <button class="btn-parar-live" id="btnPararLive">Parar compartilhamento</button>
+                <button class="btn-parar-live so-admin" id="btnPararLive">Parar compartilhamento</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LEITOR DE CÓDIGO DE BARRAS -->
+    <div class="scanner hidden" id="scanner" role="dialog" aria-modal="true" aria-label="Escanear código de barras">
+        <video id="scannerVideo" class="scanner-video" playsinline muted autoplay></video>
+
+        <div class="scanner-topo">
+            <button class="scanner-btn" id="btnFecharScanner" aria-label="Fechar leitor"><svg class="ico"><use href="#i-x"/></svg></button>
+            <button class="scanner-btn hidden" id="btnLanterna" aria-label="Ligar lanterna"><svg class="ico"><use href="#i-flash"/></svg></button>
+        </div>
+
+        <div class="scanner-mira" aria-hidden="true"><span class="scanner-laser"></span></div>
+
+        <div class="scanner-painel">
+            <p class="scanner-status" id="scannerStatus" role="status" aria-live="polite"></p>
+            <div class="scanner-manual">
+                <input type="text" id="inputCodigo" inputmode="numeric" maxlength="14" placeholder="Ou digite o código" autocomplete="off" aria-label="Digitar código de barras">
+                <button class="scanner-enviar" id="btnEnviarCodigo">Buscar</button>
+            </div>
+            <button class="scanner-foto" id="btnFoto"><svg class="ico"><use href="#i-camera"/></svg>Usar uma foto</button>
+            <input type="file" id="inputFoto" accept="image/*" capture="environment" class="hidden">
+        </div>
+    </div>
+
+    <!-- TUTORIAL -->
+    <div class="tour hidden" id="tour" role="dialog" aria-modal="true" aria-labelledby="tourTitulo">
+        <div class="tour-spot sem-alvo" id="tourSpot"></div>
+        <div class="tour-card" id="tourCard">
+            <div class="tour-topo">
+                <span class="tour-contador" id="tourContador"></span>
+                <button class="btn-link" id="btnTourPular">Pular</button>
+            </div>
+            <h3 id="tourTitulo"></h3>
+            <p id="tourTexto"></p>
+            <div id="tourExtra"></div>
+            <div class="tour-rodape">
+                <div class="tour-pontos" id="tourPontos"></div>
+                <div class="tour-botoes">
+                    <button class="btn-cancelar" id="btnTourVoltar">Voltar</button>
+                    <button class="btn-confirmar" id="btnTourProximo">Próximo</button>
+                </div>
             </div>
         </div>
     </div>
@@ -225,8 +399,14 @@
 
     <!-- Firebase compat SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <script src="firebase-config.js"></script>
+    <script src="login.js"></script>
+    <script src="catalogo.js"></script>
+    <script src="produtos.js"></script>
+    <script src="scanner.js"></script>
+    <script src="tutorial.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
