@@ -10,6 +10,8 @@ const FORMATOS_LEITOR = ['ean_13', 'ean_8', 'upc_a', 'upc_e'];
 const INTERVALO_LEITURA = 120;
 const JANELA_CONFIRMACAO = 2000;
 const TEMPO_DICA_LEITURA = 8000;
+const CAMERA_LANTERNA_KEY = 'lista-compras-camera-lanterna';
+const TAMANHO_VIDEO = { width: { ideal: 1920 }, height: { ideal: 1080 } };
 
 let detectorPronto = null;
 
@@ -23,6 +25,8 @@ const leitor = {
     inicio:   0,
     falhas:   0,
     lanterna: false,
+    querLanterna: false,     // continua acesa entre uma leitura e outra
+    ajustandoLanterna: false,
 };
 
 function carregarScript(src) {
@@ -77,6 +81,9 @@ function pararCamera() {
     leitor.sessao++;
     clearTimeout(leitor.timer);
     if (leitor.stream) {
+        const trilha = leitor.stream.getVideoTracks()[0];
+        // Alguns aparelhos deixam a luz acesa se a câmera parar sem apagar antes
+        if (leitor.lanterna && trilha) trilha.applyConstraints({ advanced: [{ torch: false }] }).catch(() => {});
         leitor.stream.getTracks().forEach(t => t.stop());
         leitor.stream = null;
     }
@@ -127,7 +134,7 @@ async function iniciarCamera() {
 
         const stream = await navigator.mediaDevices.getUserMedia({
             audio: false,
-            video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+            video: videoDesejado(),
         });
 
         // O usuário pode ter fechado enquanto o navegador pedia a permissão
@@ -160,42 +167,195 @@ async function iniciarCamera() {
     }
     if (sessao !== leitor.sessao) return;
 
+    comecarLeitura(sessao);
+
+    // Volta acesa ao escanear o próximo produto ou ao retornar de outro app
+    if (leitor.querLanterna) aplicarLanterna(true);
+}
+
+function comecarLeitura(sessao) {
     mostrarStatusLeitor('Aponte para o código de barras');
     leitor.inicio = Date.now();
     lerQuadro(sessao);
 }
 
-function configurarTrilha(trilha) {
-    const capacidades = trilha && trilha.getCapabilities ? trilha.getCapabilities() : {};
-    const botao = document.getElementById('btnLanterna');
+// Prefere a lente em que a lanterna já funcionou neste aparelho
+function videoDesejado() {
+    const video = { facingMode: { ideal: 'environment' }, ...TAMANHO_VIDEO };
+    try {
+        const salva = localStorage.getItem(CAMERA_LANTERNA_KEY);
+        if (salva) video.deviceId = { ideal: salva };
+    } catch (_) {}
+    return video;
+}
 
-    // Fica sempre à vista: se o aparelho não liberar a lanterna, o toque explica o motivo
-    botao.classList.remove('indisponivel');
-    botao.classList.toggle('sem-suporte', !capacidades.torch);
+function configurarTrilha(trilha) {
+    const botao = document.getElementById('btnLanterna');
+    botao.classList.remove('indisponivel', 'sem-suporte');
     mostrarEstadoLanterna();
 
+    const capacidades = trilha && trilha.getCapabilities ? trilha.getCapabilities() : {};
     if ((capacidades.focusMode || []).includes('continuous')) {
         trilha.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
     }
 }
 
-async function alternarLanterna() {
+/* ================================================
+   LANTERNA
+   Cada celular se comporta de um jeito: há os que só informam a lanterna depois de a
+   câmera estar rodando, os que exigem consultar o ImageCapture antes, e os que têm
+   várias lentes traseiras, com o flash em só uma. Por isso o app não decide de
+   antemão: tenta de verdade, confere se acendeu e só então desiste.
+   ================================================ */
+const esperar = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+async function acordarCamera(trilha) {
+    if (!window.ImageCapture) return;
+    try {
+        // Pode travar em alguns aparelhos, então não espera para sempre
+        await Promise.race([new window.ImageCapture(trilha).getPhotoCapabilities(), esperar(1200)]);
+    } catch (_) {}
+}
+
+function lanternaConfere(trilha, ligar) {
+    const ajustes = trilha.getSettings ? trilha.getSettings() : {};
+    if ('torch' in ajustes) return ajustes.torch === ligar;
+    // Sem esse dado no aparelho: apagar vale, e acender só se ele declarar a lanterna
+    if (!ligar) return true;
+    const capacidades = trilha.getCapabilities ? trilha.getCapabilities() : {};
+    return !!capacidades.torch;
+}
+
+async function definirLanterna(trilha, ligar) {
+    await acordarCamera(trilha);
+
+    // Conjuntos separados: um pedido não suportado não anula o outro. O foco vai junto
+    // porque cada novo pedido substitui o anterior.
+    const pedidos = [
+        { advanced: [{ torch: ligar }, { focusMode: 'continuous' }] },
+        { advanced: [{ torch: ligar }] },
+        { torch: ligar },
+    ];
+
+    for (let rodada = 0; rodada < 4; rodada++) {
+        if (rodada > 0) await esperar(300);
+        for (const pedido of pedidos) {
+            // A câmera pode ter sido fechada enquanto o aparelho respondia
+            if (trilha.readyState === 'ended') return false;
+            try {
+                await trilha.applyConstraints(pedido);
+            } catch (_) {
+                continue;
+            }
+            await esperar(120);
+            if (lanternaConfere(trilha, ligar)) return true;
+        }
+    }
+    return false;
+}
+
+// O flash pode estar em outra lente: abre uma por vez, porque muitos celulares
+// não aceitam duas câmeras abertas ao mesmo tempo
+async function ligarEmOutraCamera() {
+    if (!navigator.mediaDevices.enumerateDevices) return false;
+
+    const atual = leitor.stream && leitor.stream.getVideoTracks()[0];
+    const idAtual = atual && atual.getSettings ? atual.getSettings().deviceId : '';
+    const dispositivos = await navigator.mediaDevices.enumerateDevices().catch(() => []);
+    const candidatas = dispositivos.filter(d => d.kind === 'videoinput'
+        && d.deviceId
+        && d.deviceId !== idAtual
+        && !/front|frontal|user|selfie/i.test(d.label));
+
+    if (candidatas.length === 0) return false;
+
+    for (const camera of candidatas) {
+        pararCamera();
+        const sessao = leitor.sessao;
+        let stream = null;
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+                audio: false,
+                video: { deviceId: { exact: camera.deviceId }, ...TAMANHO_VIDEO },
+            });
+            if (sessao !== leitor.sessao || !leitor.aberto) {
+                stream.getTracks().forEach(t => t.stop());
+                return false;
+            }
+            const trilha = stream.getVideoTracks()[0];
+            if (await definirLanterna(trilha, true)) {
+                if (sessao !== leitor.sessao || !leitor.aberto) {
+                    stream.getTracks().forEach(t => t.stop());
+                    return false;
+                }
+                leitor.stream = stream;
+                const video = document.getElementById('scannerVideo');
+                video.srcObject = stream;
+                await video.play();
+                document.getElementById('btnLanterna').classList.remove('indisponivel', 'sem-suporte');
+                try {
+                    localStorage.setItem(CAMERA_LANTERNA_KEY, camera.deviceId);
+                } catch (_) {}
+                comecarLeitura(sessao);
+                return true;
+            }
+            stream.getTracks().forEach(t => t.stop());
+        } catch (err) {
+            console.warn('Lente sem acesso:', err.name);
+            if (stream) stream.getTracks().forEach(t => t.stop());
+        }
+        if (!leitor.aberto) return false;
+    }
+
+    // Nenhuma lente acendeu: volta para a câmera de leitura
+    await iniciarCamera();
+    return false;
+}
+
+async function aplicarLanterna(ligar) {
+    const botao = document.getElementById('btnLanterna');
+    if (leitor.ajustandoLanterna) return;
+
     const trilha = leitor.stream && leitor.stream.getVideoTracks()[0];
     if (!trilha) return;
 
-    const semLanterna = 'Este aparelho não libera a lanterna para o navegador. Tente em um lugar mais claro.';
-    if (document.getElementById('btnLanterna').classList.contains('sem-suporte')) {
-        mostrarStatusLeitor(semLanterna, 'erro');
-        return;
-    }
+    leitor.ajustandoLanterna = true;
+    const sessao = leitor.sessao;
+    const textoAntes = document.getElementById('scannerStatus').textContent;
+    if (ligar) mostrarStatusLeitor('Ligando a lanterna...');
 
     try {
-        await trilha.applyConstraints({ advanced: [{ torch: !leitor.lanterna }] });
-        leitor.lanterna = !leitor.lanterna;
-    } catch (_) {
-        mostrarStatusLeitor(semLanterna, 'erro');
+        let certo = await definirLanterna(trilha, ligar);
+        // Fechou ou trocou de câmera no meio: este pedido não vale mais
+        if (sessao !== leitor.sessao) return;
+        if (!certo && ligar) {
+            mostrarStatusLeitor('Procurando a lente com flash...');
+            certo = await ligarEmOutraCamera();
+        }
+        if (!leitor.aberto) return;
+
+        leitor.lanterna = ligar && certo;
+        leitor.querLanterna = leitor.lanterna;
+
+        if (ligar && !certo) {
+            botao.classList.add('sem-suporte');
+            mostrarStatusLeitor('Este aparelho não libera a lanterna para o navegador. Tente em um lugar mais claro.', 'erro');
+        } else if (ligar) {
+            mostrarStatusLeitor(textoAntes === 'Ligando a lanterna...' ? 'Aponte para o código de barras' : textoAntes);
+        }
+        mostrarEstadoLanterna();
+    } finally {
+        leitor.ajustandoLanterna = false;
     }
-    mostrarEstadoLanterna();
+}
+
+function alternarLanterna() {
+    if (!leitor.stream) return;
+    if (document.getElementById('btnLanterna').classList.contains('sem-suporte')) {
+        mostrarStatusLeitor('Este aparelho não libera a lanterna para o navegador. Tente em um lugar mais claro.', 'erro');
+        return;
+    }
+    aplicarLanterna(!leitor.lanterna);
 }
 
 async function lerQuadro(sessao) {
@@ -257,8 +417,9 @@ function sinalizarLeitura() {
 /* ================================================
    ABRIR / FECHAR
    ================================================ */
-function abrirScanner() {
+function abrirScanner({ manterLanterna = false } = {}) {
     leitor.aberto = true;
+    if (!manterLanterna) leitor.querLanterna = false;
     document.getElementById('scanner').classList.remove('hidden');
     document.getElementById('scanner').classList.remove('buscando');
     document.getElementById('inputCodigo').value = '';

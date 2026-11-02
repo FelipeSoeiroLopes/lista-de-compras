@@ -328,7 +328,8 @@
 
     <!-- MODAL DE CONFIRMAÇÃO CUSTOMIZADO -->
     <div class="modal-backdrop hidden" id="confirmBackdrop">
-        <div class="modal confirm-modal">
+        <div class="modal confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitulo" aria-describedby="confirmMsg">
+            <h3 id="confirmTitulo" class="confirm-titulo"></h3>
             <p id="confirmMsg" class="confirm-msg"></p>
             <div class="modal-footer-btns">
                 <button class="btn-cancelar" id="btnConfirmCancelar">Cancelar</button>

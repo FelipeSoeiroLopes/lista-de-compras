@@ -1180,10 +1180,20 @@ select.input-field {
     margin: auto 16px;
 }
 
-.confirm-msg {
-    font-size: .98rem;
+.confirm-titulo {
+    font-family: var(--titulo);
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -.02em;
     color: var(--text);
-    line-height: 1.5;
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+.confirm-msg {
+    font-size: .95rem;
+    color: var(--text-2);
+    line-height: 1.45;
     margin-bottom: 20px;
     text-align: center;
 }

@@ -53,6 +53,7 @@ function init() {
     bindEvents();
     bindScanner();
     bindTutorial();
+    configurarBotaoVoltar();
     renderizar();
     atualizarCategoriasFiltro();
 
@@ -794,7 +795,7 @@ function confirmarModal({ continuarEscaneando = false } = {}) {
     renderizar();
     atualizarCategoriasFiltro();
 
-    if (continuarEscaneando) abrirScanner();
+    if (continuarEscaneando) abrirScanner({ manterLanterna: true });
 }
 
 /* ================================================
@@ -880,7 +881,13 @@ function limparPegos() {
     const count = state.itens.filter(i => i.pego).length;
     if (count === 0) { mostrarToast('Nenhum item marcado como pego'); return; }
     confirmarAcao(
-        `Remover ${count} item(s) já pego(s)?`,
+        {
+            titulo:   'Remover itens pegos?',
+            mensagem: count === 1
+                ? '1 item já pego sai da lista. O total também será atualizado.'
+                : `${count} itens já pegos saem da lista. O total também será atualizado.`,
+            botao:    'Remover',
+        },
         () => {
             state.itens = state.itens.filter(i => !i.pego);
             salvar();
@@ -893,8 +900,13 @@ function limparPegos() {
 
 function limparTudo() {
     if (state.itens.length === 0) { mostrarToast('A lista já está vazia'); return; }
+    const total = state.itens.length;
     confirmarAcao(
-        `Remover todos os ${state.itens.length} itens da lista?`,
+        {
+            titulo:   'Apagar a lista inteira?',
+            mensagem: `${total === 1 ? 'O único item' : `Os ${total} itens`} serão apagados${codigoAtivo ? ' para todos que usam este link' : ''}. Não dá para desfazer.`,
+            botao:    'Apagar lista',
+        },
         () => {
             state.itens = [];
             salvar();
@@ -910,9 +922,13 @@ function limparTudo() {
    ================================================ */
 let confirmCallback = null;
 
-function confirmarAcao(msg, callback) {
+function confirmarAcao({ titulo, mensagem, botao = 'Confirmar', perigo = true }, callback) {
     confirmCallback = callback;
-    document.getElementById('confirmMsg').textContent = msg;
+    document.getElementById('confirmTitulo').textContent = titulo;
+    document.getElementById('confirmMsg').textContent = mensagem;
+    const ok = document.getElementById('btnConfirmOk');
+    ok.textContent = botao;
+    ok.classList.toggle('btn-danger-solid', perigo);
     document.getElementById('confirmBackdrop').classList.remove('hidden');
 }
 
@@ -1136,7 +1152,14 @@ function bindEvents() {
     // Ajuda e menu
     document.getElementById('btnAjuda').addEventListener('click', abrirTutorial);
     document.getElementById('btnSair').addEventListener('click', () => {
-        confirmarAcao('Sair deste aparelho? Sua lista continua salva aqui.', sair);
+        confirmarAcao(
+            {
+                titulo:   'Sair da conta?',
+                mensagem: 'Você precisará da senha para entrar de novo. Sua lista continua salva neste aparelho.',
+                botao:    'Sair',
+            },
+            sair
+        );
     });
     document.getElementById('btnMenu').addEventListener('click', abrirMenu);
     document.getElementById('btnFecharMenu').addEventListener('click', fecharMenu);
@@ -1226,7 +1249,14 @@ function bindEvents() {
     document.getElementById('btnPararLive').addEventListener('click', () => {
         // Fecha o modal ao vivo ANTES de abrir o confirm — senão o modal fica preso
         fecharLiveShareModal();
-        confirmarAcao('Parar o compartilhamento e remover a lista do servidor?', pararCompartilhamento);
+        confirmarAcao(
+            {
+                titulo:   'Parar o compartilhamento?',
+                mensagem: 'O link deixa de funcionar e a lista compartilhada será apagada do servidor.',
+                botao:    'Parar',
+            },
+            pararCompartilhamento
+        );
     });
 
     // Filtros de status
@@ -1290,6 +1320,46 @@ function bindEvents() {
         if (!document.getElementById('modalBackdrop').classList.contains('hidden'))    { fecharModal();          return; }
         if (!document.getElementById('confirmBackdrop').classList.contains('hidden'))  { fecharConfirm();        return; }
         if (!document.getElementById('liveShareBackdrop').classList.contains('hidden')){ fecharLiveShareModal(); return; }
+    });
+}
+
+/* ================================================
+   BOTÃO VOLTAR DO CELULAR (app instalado)
+   Sem isso, o Voltar fecha o app de uma vez. Agora ele fecha primeiro o que estiver
+   aberto e, na tela principal, pergunta antes de sair.
+   ================================================ */
+function fecharTelaAberta() {
+    const aberta = id => !document.getElementById(id).classList.contains('hidden');
+    if (tutorialAberto())             { fecharTutorial();       return true; }
+    if (aberta('confirmBackdrop'))    { fecharConfirm();        return true; }
+    if (leitor.aberto)                { fecharScanner();        return true; }
+    if (aberta('modalBackdrop'))      { fecharModal();          return true; }
+    if (aberta('liveShareBackdrop'))  { fecharLiveShareModal(); return true; }
+    if (aberta('menuBackdrop'))       { fecharMenu();           return true; }
+    return false;
+}
+
+function configurarBotaoVoltar() {
+    const instalado = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (!instalado) return;
+
+    const reservarVoltar = () => history.pushState({ voltar: true }, '');
+    let saindo = false;
+
+    // Precisa de um toque antes: o Chrome ignora entradas criadas sem interação
+    document.addEventListener('click', reservarVoltar, { once: true });
+
+    window.addEventListener('popstate', () => {
+        if (saindo) return;
+        reservarVoltar();
+        if (fecharTelaAberta()) return;
+        confirmarAcao(
+            { titulo: 'Fechar o aplicativo?', mensagem: 'Sua lista continua salva neste aparelho.', botao: 'Fechar app', perigo: false },
+            () => {
+                saindo = true;
+                history.go(-2);
+            }
+        );
     });
 }
 
