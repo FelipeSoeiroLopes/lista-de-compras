@@ -654,8 +654,10 @@ function abrirAdicionar() {
     irParaEtapa('produto');
 }
 
-// Editar é ajuste rápido em algo que já existe: tudo na mesma tela
-function abrirEditar(id, campoFoco = 'inputNome') {
+// Editar é ajuste rápido em algo que já existe: tudo na mesma tela. Só abre, sem teclado
+// nem campo selecionado, e a pessoa toca no que quer mudar. "Adicionar preço" é a exceção:
+// ali o toque já disse qual é o campo.
+function abrirEditar(id, campoFoco = null) {
     const item = state.itens.find(i => i.id === id);
     if (!item) return;
     state.editandoId      = id;
@@ -665,7 +667,11 @@ function abrirEditar(id, campoFoco = 'inputNome') {
     prepararFormulario({ titulo: 'Editar Item', botao: 'Salvar' });
     preencherCampos(item);
     irParaEtapa(null);
-    requestAnimationFrame(() => document.getElementById(campoFoco).focus());
+    document.getElementById('modal').scrollTop = 0;
+    requestAnimationFrame(() => {
+        if (campoFoco) document.getElementById(campoFoco).focus();
+        else document.getElementById('modalTitulo').focus({ preventScroll: true });
+    });
 }
 
 function dadosDoProduto(p) {
