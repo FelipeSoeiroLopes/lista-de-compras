@@ -503,7 +503,7 @@ function atualizarUIDaUnidade() {
 function prepararFormulario({ titulo, botao }) {
     document.getElementById('modalTitulo').textContent       = titulo;
     document.getElementById('btnConfirmarModal').textContent = botao;
-    document.getElementById('btnAdicionarEscanear').textContent = `${botao} e escanear outro`;
+    document.getElementById('textoAdicionarEscanear').textContent = `${botao} e escanear outro`;
     document.getElementById('btnAdicionarEscanear').classList.toggle('hidden', !state.fluxoScanner);
     document.getElementById('btnCancelarModal').textContent  = state.fluxoScanner ? 'Fechar' : 'Cancelar';
     document.getElementById('inputNome').classList.remove('error');

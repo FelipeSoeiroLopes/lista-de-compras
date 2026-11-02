@@ -307,10 +307,10 @@
                     </select>
                 </div>
             </div>
-            <button class="btn-confirmar btn-continuar hidden" id="btnAdicionarEscanear">Adicionar e escanear outro</button>
-            <div class="modal-footer-btns">
-                <button class="btn-cancelar" id="btnCancelarModal">Cancelar</button>
+            <div class="modal-acoes">
                 <button class="btn-confirmar" id="btnConfirmarModal">Adicionar</button>
+                <button class="btn-escanear-outro hidden" id="btnAdicionarEscanear"><svg class="ico"><use href="#i-barcode"/></svg><span id="textoAdicionarEscanear">Adicionar e escanear outro</span></button>
+                <button class="btn-cancelar" id="btnCancelarModal">Cancelar</button>
             </div>
         </div>
     </div>
@@ -353,8 +353,8 @@
         <video id="scannerVideo" class="scanner-video" playsinline muted autoplay></video>
 
         <div class="scanner-topo">
-            <button class="scanner-btn" id="btnFecharScanner" aria-label="Fechar leitor"><svg class="ico"><use href="#i-x"/></svg></button>
-            <button class="scanner-btn hidden" id="btnLanterna" aria-label="Ligar lanterna"><svg class="ico"><use href="#i-flash"/></svg></button>
+            <button class="scanner-btn" id="btnFecharScanner"><svg class="ico"><use href="#i-x"/></svg><span>Fechar</span></button>
+            <button class="scanner-btn hidden" id="btnLanterna" aria-pressed="false"><svg class="ico"><use href="#i-flash"/></svg><span id="textoLanterna">Lanterna</span></button>
         </div>
 
         <div class="scanner-mira" aria-hidden="true"><span class="scanner-laser"></span></div>

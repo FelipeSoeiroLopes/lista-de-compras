@@ -83,6 +83,14 @@ function pararCamera() {
     document.getElementById('scannerVideo').srcObject = null;
     document.getElementById('btnLanterna').classList.add('hidden');
     leitor.lanterna = false;
+    mostrarEstadoLanterna();
+}
+
+function mostrarEstadoLanterna() {
+    const botao = document.getElementById('btnLanterna');
+    botao.classList.toggle('ativo', leitor.lanterna);
+    botao.setAttribute('aria-pressed', String(leitor.lanterna));
+    document.getElementById('textoLanterna').textContent = leitor.lanterna ? 'Lanterna ligada' : 'Lanterna';
 }
 
 function mensagemErroCamera(err) {
@@ -152,10 +160,13 @@ async function iniciarCamera() {
 }
 
 function configurarTrilha(trilha) {
-    if (!trilha || !trilha.getCapabilities) return;
-    const capacidades = trilha.getCapabilities();
+    const capacidades = trilha && trilha.getCapabilities ? trilha.getCapabilities() : {};
+    const botao = document.getElementById('btnLanterna');
 
-    if (capacidades.torch) document.getElementById('btnLanterna').classList.remove('hidden');
+    // Fica sempre à vista: se o aparelho não liberar a lanterna, o toque explica o motivo
+    botao.classList.remove('hidden');
+    botao.classList.toggle('indisponivel', !capacidades.torch);
+
     if ((capacidades.focusMode || []).includes('continuous')) {
         trilha.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
     }
@@ -164,13 +175,20 @@ function configurarTrilha(trilha) {
 async function alternarLanterna() {
     const trilha = leitor.stream && leitor.stream.getVideoTracks()[0];
     if (!trilha) return;
-    leitor.lanterna = !leitor.lanterna;
-    try {
-        await trilha.applyConstraints({ advanced: [{ torch: leitor.lanterna }] });
-        document.getElementById('btnLanterna').classList.toggle('ativo', leitor.lanterna);
-    } catch (_) {
-        leitor.lanterna = false;
+
+    const semLanterna = 'Este aparelho não libera a lanterna para o navegador. Tente em um lugar mais claro.';
+    if (document.getElementById('btnLanterna').classList.contains('indisponivel')) {
+        mostrarStatusLeitor(semLanterna, 'erro');
+        return;
     }
+
+    try {
+        await trilha.applyConstraints({ advanced: [{ torch: !leitor.lanterna }] });
+        leitor.lanterna = !leitor.lanterna;
+    } catch (_) {
+        mostrarStatusLeitor(semLanterna, 'erro');
+    }
+    mostrarEstadoLanterna();
 }
 
 async function lerQuadro(sessao) {

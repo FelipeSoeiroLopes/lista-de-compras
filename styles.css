@@ -1104,6 +1104,41 @@ select.input-field {
     gap: 10px;
 }
 
+/* Formulário: a ação principal primeiro, as demais abaixo */
+.modal-acoes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.modal-acoes .btn-confirmar { flex: none; width: 100%; padding: 15px; font-size: 1.02rem; }
+
+.modal-acoes .btn-cancelar {
+    flex: none;
+    width: 100%;
+    padding: 10px;
+    border: none;
+}
+
+.btn-escanear-outro {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 13px;
+    color: var(--primary-ink);
+    background: var(--primary-soft);
+    border: none;
+    border-radius: var(--r-md);
+    font-size: .95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background var(--t);
+}
+
+.btn-escanear-outro:hover { background: var(--border); }
+
 .btn-cancelar {
     flex: 1;
     border: 1.5px solid var(--border);
@@ -1133,16 +1168,6 @@ select.input-field {
 }
 
 .btn-confirmar:hover { background: var(--primary-dark); }
-
-.btn-continuar {
-    display: block;
-    width: 100%;
-    margin-bottom: 10px;
-    color: var(--on-accent);
-    background: var(--accent);
-}
-
-.btn-continuar:hover { background: var(--accent-dark); }
 
 /* Modal de confirmação */
 .confirm-modal {
@@ -1322,26 +1347,40 @@ select.input-field {
 
 .scanner-topo {
     position: relative;
+    /* Acima da sombra da mira, que escurece todo o resto da tela */
+    z-index: 2;
     display: flex;
+    align-items: center;
     justify-content: space-between;
+    gap: 10px;
     padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px;
 }
 
+/* Fundo sólido: precisa aparecer sobre qualquer imagem da câmera */
 .scanner-btn {
-    width: 44px;
-    height: 44px;
+    height: 48px;
+    padding: 0 18px 0 14px;
     border: none;
     border-radius: var(--r-full);
-    color: #fff;
-    background: rgba(0,0,0,.5);
-    font-size: 1.05rem;
+    color: #0f2342;
+    background: #fff;
+    font-size: .98rem;
+    font-weight: 700;
+    white-space: nowrap;
     cursor: pointer;
+    box-shadow: 0 3px 12px rgba(0,0,0,.45);
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 8px;
+    transition: background var(--t), transform var(--t);
 }
 
-.scanner-btn.ativo { color: var(--on-accent); background: var(--accent); }
+.scanner-btn .ico { font-size: 1.1rem; stroke-width: 2.5; }
+.scanner-btn:active { transform: scale(.96); }
+
+.scanner-btn.ativo { background: #ffd54a; box-shadow: 0 0 18px rgba(255,213,74,.75); }
+.scanner-btn.ativo .ico { fill: #0f2342; }
+.scanner-btn.indisponivel { color: #5b6b85; background: rgba(255,255,255,.72); }
 
 /* A sombra gigante escurece tudo fora da mira */
 .scanner-mira {
