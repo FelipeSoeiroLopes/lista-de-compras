@@ -414,14 +414,14 @@ function aplicarMascaraPreco(input) {
     const intFormatado = parseInt(intPart, 10).toLocaleString('pt-BR');
     input.value = `${intFormatado},${decPart}`;
     // Como no caixa eletrônico, cada número entra sempre no fim
-    input.setSelectionRange(input.value.length, input.value.length);
+    if (document.activeElement === input) input.setSelectionRange(input.value.length, input.value.length);
 }
 
-// Lê o campo de preço como float (ex: "8,90" → 8.9)
+// Lê o campo de preço como float (ex: "8,90" → 8.9). Os números são sempre centavos, então
+// a leitura também vale enquanto o teclado ainda compõe o texto, antes da máscara.
 function getPrecoFloat() {
-    const raw = document.getElementById('inputPreco').value;
-    if (!raw) return 0;
-    return parseFloat(raw.replace(/\./g, '').replace(',', '.')) || 0;
+    const digitos = document.getElementById('inputPreco').value.replace(/\D/g, '');
+    return digitos ? parseInt(digitos, 10) / 100 : 0;
 }
 
 // Preenche o campo de preço com valor float já formatado (ao editar)
@@ -1432,10 +1432,17 @@ function bindEvents() {
     // Máscara de centavos no campo de preço
     const inputPreco = document.getElementById('inputPreco');
 
-    inputPreco.addEventListener('input', () => {
+    // Teclados do Android podem compor o texto e devolvê-lo só ao fechar: reescrever o campo
+    // nesse meio-tempo embaralha o valor, então a máscara espera a composição terminar.
+    const mascararPreco = () => {
         aplicarMascaraPreco(inputPreco);
         atualizarPreviewSubtotal();
+    };
+    inputPreco.addEventListener('input', e => {
+        if (e.isComposing) atualizarPreviewSubtotal();
+        else mascararPreco();
     });
+    inputPreco.addEventListener('compositionend', mascararPreco);
 
     inputPreco.addEventListener('keydown', e => {
         if (e.key === 'Enter') confirmarModal();
@@ -1448,7 +1455,10 @@ function bindEvents() {
         precoRecemFocado = true;
         inputPreco.select();
     });
-    inputPreco.addEventListener('blur', () => { precoRecemFocado = false; });
+    inputPreco.addEventListener('blur', () => {
+        precoRecemFocado = false;
+        mascararPreco();
+    });
     inputPreco.addEventListener('click', () => {
         if (precoRecemFocado) {
             precoRecemFocado = false;
