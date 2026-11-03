@@ -696,9 +696,13 @@ function abrirEditar(id, campoFoco = null) {
 }
 
 // O foco precisa acontecer ainda dentro do toque: fora dele, o celular não abre o teclado.
-// O teclado sobe depois e encolhe a tela, por isso o campo é centralizado de novo.
 function levarAoCampo(campo) {
     campo.focus({ preventScroll: true });
+    manterCampoAVista(campo);
+}
+
+// O teclado sobe depois do toque e encolhe a tela, por isso o campo é centralizado de novo.
+function manterCampoAVista(campo) {
     const centralizar = () => {
         if (document.activeElement === campo) campo.closest('.campo-grupo').scrollIntoView({ block: 'center' });
     };
@@ -1454,6 +1458,11 @@ function bindEvents() {
     inputPreco.addEventListener('focus', () => {
         precoRecemFocado = true;
         inputPreco.select();
+        if (!state.etapasFluxo) manterCampoAVista(inputPreco);
+    });
+    // A caixa inteira responde ao toque, inclusive o "R$"
+    document.querySelector('.preco-wrapper').addEventListener('click', e => {
+        if (e.target !== inputPreco) inputPreco.focus({ preventScroll: true });
     });
     inputPreco.addEventListener('blur', () => {
         precoRecemFocado = false;
