@@ -688,10 +688,25 @@ function abrirEditar(id, campoFoco = null) {
     preencherCampos(item);
     irParaEtapa(null);
     document.getElementById('modal').scrollTop = 0;
-    requestAnimationFrame(() => {
-        if (campoFoco) document.getElementById(campoFoco).focus();
-        else document.getElementById('modalTitulo').focus({ preventScroll: true });
-    });
+    if (campoFoco) {
+        levarAoCampo(document.getElementById(campoFoco));
+        return;
+    }
+    requestAnimationFrame(() => document.getElementById('modalTitulo').focus({ preventScroll: true }));
+}
+
+// O foco precisa acontecer ainda dentro do toque: fora dele, o celular não abre o teclado.
+// O teclado sobe depois e encolhe a tela, por isso o campo é centralizado de novo.
+function levarAoCampo(campo) {
+    campo.focus({ preventScroll: true });
+    const centralizar = () => {
+        if (document.activeElement === campo) campo.closest('.campo-grupo').scrollIntoView({ block: 'center' });
+    };
+    centralizar();
+    const tela = window.visualViewport;
+    if (!tela) return;
+    tela.addEventListener('resize', centralizar);
+    setTimeout(() => tela.removeEventListener('resize', centralizar), 1500);
 }
 
 function dadosDoProduto(p) {
