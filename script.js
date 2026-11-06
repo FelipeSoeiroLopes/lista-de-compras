@@ -775,6 +775,7 @@ const AVISOS_LEITURA = {
     'encontrado':     p => `Dados: ${p.fonte}`,
     'lembrado':       () => 'Você já comprou este produto',
     'nao-encontrado': p => `Código ${p.codigo} ainda sem cadastro. Digite o nome: da próxima vez o app lembra.`,
+    'codigo-mercado': p => `Código do mercado ${p.codigo}. Digite o nome: da próxima vez o app lembra.`,
     'sem-conexao':    p => `Sem resposta da base de produtos. Digite o nome do código ${p.codigo}.`,
 };
 

@@ -735,13 +735,13 @@ li.item-compra.pego .item-nome {
 .btn-escanear:active { transform: scale(.96); }
 
 .fab {
-    width: 56px;
+    width: 72px;
     height: 56px;
     border-radius: var(--r-lg);
     background: var(--primary-soft);
     color: var(--primary-ink);
     border: none;
-    font-size: 1.3rem;
+    font-size: 1.75rem;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -2196,7 +2196,7 @@ input[type=number] { -moz-appearance: textfield; }
     .footer { padding: 8px 12px calc(10px + env(safe-area-inset-bottom, 0px)); gap: 8px; }
     .total-valor { font-size: 1.35rem; }
     .btn-escanear { height: 50px; padding: 0 12px; font-size: .9rem; }
-    .fab { width: 50px; height: 50px; }
+    .fab { width: 60px; height: 50px; font-size: 1.6rem; }
     .item-thumb { width: 38px; height: 38px; font-size: 1.15rem; }
 }
 

@@ -6,7 +6,10 @@
    Windows) carrega um leitor WASM só na primeira vez que for preciso.
    ================================================ */
 const URL_LEITOR_WASM = 'https://cdn.jsdelivr.net/npm/barcode-detector@3.2.3/dist/iife/ponyfill.js';
-const FORMATOS_LEITOR = ['ean_13', 'ean_8', 'upc_a', 'upc_e'];
+const FORMATOS_PRODUTO = ['ean_13', 'ean_8', 'upc_a', 'upc_e'];
+// Etiquetas e códigos internos de mercado (atacarejos, gôndolas, balança) usam estes
+const FORMATOS_MERCADO = ['code_128', 'code_39', 'code_93', 'itf', 'codabar'];
+const FORMATOS_LEITOR  = [...FORMATOS_PRODUTO, ...FORMATOS_MERCADO];
 const INTERVALO_LEITURA = 120;
 const JANELA_CONFIRMACAO = 2000;
 const TEMPO_DICA_LEITURA = 8000;
@@ -53,8 +56,9 @@ async function criarDetector() {
     if ('BarcodeDetector' in window) {
         try {
             const suportados = await window.BarcodeDetector.getSupportedFormats();
-            if (suportados.includes('ean_13')) {
-                return new window.BarcodeDetector({ formats: FORMATOS_LEITOR.filter(f => suportados.includes(f)) });
+            // Sem os formatos de mercado no nativo, o WASM lê todos
+            if (FORMATOS_LEITOR.every(f => suportados.includes(f))) {
+                return new window.BarcodeDetector({ formats: FORMATOS_LEITOR });
             }
         } catch (_) {}
     }
@@ -62,10 +66,31 @@ async function criarDetector() {
     return new window.BarcodeDetectionAPI.BarcodeDetector({ formats: FORMATOS_LEITOR });
 }
 
-// UPC-E tem dígito verificador próprio, então não passa pelo cálculo de GTIN
+// Código interno do mercado: só letras e números, para servir de chave na memória
+function codigoMercadoLimpo(texto) {
+    const limpo = String(texto || '').replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+    return limpo.length >= 3 && limpo.length <= 40 ? limpo : '';
+}
+
+// UPC-E tem dígito verificador próprio, então não passa pelo cálculo de GTIN.
+// Código de produto (EAN) tem preferência; senão vale o código do mercado.
 function codigoDaLeitura(resultados) {
-    const valido = resultados.find(r => r.format === 'upc_e' || gtinValido(r.rawValue));
-    return valido ? valido.rawValue : '';
+    const produto = resultados.find(r => FORMATOS_PRODUTO.includes(r.format)
+        && (r.format === 'upc_e' || gtinValido(r.rawValue)));
+    if (produto) return produto.rawValue;
+
+    for (const r of resultados) {
+        if (!FORMATOS_MERCADO.includes(r.format)) continue;
+        const limpo = codigoMercadoLimpo(r.rawValue);
+        // ITF-14 de caixa fechada é um GTIN de verdade e pode estar nas bases
+        if (limpo) return gtinValido(limpo) && limpo.length === 14 && limpo[0] === '0' ? limpo.slice(1) : limpo;
+    }
+    return '';
+}
+
+// EAN com prefixo 2 é de uso interno da loja (balança, etiquetas): não está em base pública
+function codigoInterno(codigo) {
+    return !gtinValido(codigo) || (codigo.length === 13 && codigo[0] === '2');
 }
 
 /* ================================================
@@ -457,12 +482,16 @@ async function processarCodigo(codigo) {
 
     let produto = null;
     let situacao = 'encontrado';
-    try {
-        produto = await buscarProduto(codigo);
-        if (!produto) situacao = 'nao-encontrado';
-    } catch (err) {
-        console.error('Erro ao consultar produto:', err);
-        situacao = 'sem-conexao';
+    if (codigoInterno(codigo)) {
+        situacao = 'codigo-mercado';
+    } else {
+        try {
+            produto = await buscarProduto(codigo);
+            if (!produto) situacao = 'nao-encontrado';
+        } catch (err) {
+            console.error('Erro ao consultar produto:', err);
+            situacao = 'sem-conexao';
+        }
     }
 
     // Fechou o leitor enquanto a busca rodava
@@ -474,9 +503,11 @@ async function processarCodigo(codigo) {
 
 function enviarCodigoDigitado() {
     const input  = document.getElementById('inputCodigo');
-    const codigo = input.value.replace(/\D/g, '');
+    const codigo = codigoMercadoLimpo(input.value);
+    // Com tamanho de EAN, os números precisam fechar; outros tamanhos são do mercado
+    const pareceEan = /^(\d{8}|\d{12,14})$/.test(codigo);
 
-    if (!gtinValido(codigo)) {
+    if (!codigo || (pareceEan && !gtinValido(codigo))) {
         mostrarStatusLeitor('Código inválido. Confira os números embaixo das barras.', 'erro');
         input.focus();
         return;
