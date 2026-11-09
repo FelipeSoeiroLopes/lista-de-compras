@@ -51,13 +51,36 @@ function obterDetector() {
     return detectorPronto;
 }
 
+async function detectorResponde(detector) {
+    try {
+        const tela = document.createElement('canvas');
+        tela.width = tela.height = 64;
+        const ctx = tela.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, 64, 64);
+        await Promise.race([
+            detector.detect(tela),
+            new Promise((_, rejeitar) => setTimeout(() => rejeitar(new Error('sem resposta')), 4000)),
+        ]);
+        return true;
+    } catch (err) {
+        console.warn('Teste do leitor falhou:', err && (err.name + ': ' + err.message));
+        return false;
+    }
+}
+
 async function criarDetector({ forcarWasm = false } = {}) {
     if (!forcarWasm && 'BarcodeDetector' in window) {
         try {
             const suportados = await window.BarcodeDetector.getSupportedFormats();
             // Sem os formatos de mercado no nativo, o WASM lê todos
             if (FORMATOS_LEITOR.every(f => suportados.includes(f))) {
-                return new window.BarcodeDetector({ formats: FORMATOS_LEITOR });
+                const nativo = new window.BarcodeDetector({ formats: FORMATOS_LEITOR });
+                // Em vários Android o nativo diz que suporta tudo, mas o serviço do Google
+                // ainda não foi baixado ou não existe no aparelho, e toda leitura falha.
+                // Faz uma leitura de teste: se não responder, usa o WASM direto.
+                if (await detectorResponde(nativo)) return nativo;
+                console.warn('Leitor nativo não respondeu, usando o WASM');
             }
         } catch (_) {}
     }
@@ -424,7 +447,7 @@ async function lerQuadro(sessao) {
             const resultado = await detector.detect(video);
             if (sessao !== leitor.sessao) return;
 
-            if (leitor.falhas >= 10) mostrarStatusLeitor('Aponte para o código de barras');
+            if (leitor.falhas >= 5) mostrarStatusLeitor('Aponte para o código de barras');
             leitor.falhas = 0;
             const codigo = codigoDaLeitura(resultado);
             const agora  = Date.now();
@@ -449,13 +472,16 @@ async function lerQuadro(sessao) {
         } catch (err) {
             if (sessao !== leitor.sessao) return;
             leitor.falhas++;
-            if (leitor.falhas === 10) {
+            if (leitor.falhas === 1) console.warn('Erro na leitura:', err && (err.name + ': ' + err.message));
+            // Só avisa depois de já ter trocado de leitor e mesmo assim continuar falhando
+            if (leitor.falhas === 15) {
                 console.error('Erro na leitura:', err);
                 mostrarStatusLeitor('O leitor falhou. Tentando de novo... ou digite o código abaixo.', 'erro');
             }
-            // Em vez de desistir, troca o leitor: o nativo instável passa para o WASM,
-            // e o WASM que não carregou é baixado de novo
-            if (leitor.falhas % 10 === 0) {
+            // Em vez de desistir, troca o leitor em silêncio: o nativo instável passa
+            // para o WASM, e o WASM que não carregou é baixado de novo
+            if (leitor.falhas % 5 === 0) {
+                if (leitor.falhas < 15) mostrarStatusLeitor('Preparando o leitor...');
                 try {
                     const atual = await obterDetector().catch(() => null);
                     await reiniciarDetector({ forcarWasm: !!atual && !atual.wasm });

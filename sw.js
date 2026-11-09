@@ -5,7 +5,7 @@
    Permite instalar o app e abrir sem internet. Com internet, sempre busca a versão
    mais nova do site: o cache só entra quando a rede falha ou demora demais.
    ================================================ */
-const CACHE_APP = 'lista-pratica-app-v1';
+const CACHE_APP = 'lista-pratica-app-v2';
 const CACHE_CDN = 'lista-pratica-cdn-v1';
 const TEMPO_LIMITE_REDE = 3000;
 
@@ -59,7 +59,9 @@ async function redePrimeiro(pedido) {
     // Qualquer endereço do app abre a mesma página, inclusive os links ?c=...
     const guardado = () => (navegacao ? cache.match('index.html') : cache.match(pedido, { ignoreSearch: true }));
 
-    const daRede = fetch(pedido).then(resposta => {
+    // no-cache: sempre confere com o servidor, senão o cache do navegador (10 min no
+    // GitHub Pages) entregava a versão antiga mesmo depois de publicar a nova
+    const daRede = fetch(new Request(pedido, { cache: 'no-cache' })).then(resposta => {
         if (resposta.ok) cache.put(navegacao ? 'index.html' : pedido, resposta.clone());
         return resposta;
     });
