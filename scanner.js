@@ -23,8 +23,7 @@ const leitor = {
     stream:   null,
     timer:    null,
     sessao:   0,     // invalida leituras e câmeras de uma sessão já encerrada
-    ultimo:   '',
-    ultimoEm: 0,
+    candidatos: new Map(),   // código → quando foi visto (aguardando confirmação)
     inicio:   0,
     falhas:   0,
     lanterna: false,
@@ -52,8 +51,8 @@ function obterDetector() {
     return detectorPronto;
 }
 
-async function criarDetector() {
-    if ('BarcodeDetector' in window) {
+async function criarDetector({ forcarWasm = false } = {}) {
+    if (!forcarWasm && 'BarcodeDetector' in window) {
         try {
             const suportados = await window.BarcodeDetector.getSupportedFormats();
             // Sem os formatos de mercado no nativo, o WASM lê todos
@@ -62,8 +61,40 @@ async function criarDetector() {
             }
         } catch (_) {}
     }
-    await carregarScript(URL_LEITOR_WASM);
-    return new window.BarcodeDetectionAPI.BarcodeDetector({ formats: FORMATOS_LEITOR });
+    if (!window.BarcodeDetectionAPI) await carregarScript(URL_LEITOR_WASM);
+    const api = window.BarcodeDetectionAPI;
+    // O motor .wasm só é baixado no primeiro uso, e a biblioteca guarda a falha para
+    // sempre: um download que caiu (sinal fraco no mercado) deixava o leitor morto até
+    // recarregar a página. Aqui ele é baixado já na preparação e, se falhar, é
+    // descartado para a próxima tentativa baixar de novo.
+    try {
+        await api.prepareZXingModule({ fireImmediately: true });
+    } catch (err) {
+        api.purgeZXingModule();
+        throw err;
+    }
+    const detector = new api.BarcodeDetector({ formats: FORMATOS_LEITOR });
+    detector.wasm = true;
+    return detector;
+}
+
+// Leitor travado (motor que não carregou ou nativo instável): descarta e prepara outro
+function reiniciarDetector({ forcarWasm = false } = {}) {
+    if (window.BarcodeDetectionAPI) window.BarcodeDetectionAPI.purgeZXingModule();
+    detectorPronto = criarDetector({ forcarWasm }).catch(err => {
+        detectorPronto = null;
+        throw err;
+    });
+    return detectorPronto;
+}
+
+// Em aparelhos sem leitor nativo, baixa o motor com o app parado, antes de chegar
+// ao mercado: o service worker guarda o arquivo e o leitor abre mesmo sem sinal
+function prepararLeitorEmSegundoPlano() {
+    if (!navigator.onLine) return;
+    const preparar = () => obterDetector().catch(() => {});
+    if ('requestIdleCallback' in window) requestIdleCallback(preparar, { timeout: 5000 });
+    else setTimeout(preparar, 3000);
 }
 
 // Código interno do mercado: só letras e números, para servir de chave na memória
@@ -149,7 +180,7 @@ async function iniciarCamera() {
     const sessao = leitor.sessao;
     const area = document.getElementById('scanner');
     area.classList.remove('sem-camera');
-    leitor.ultimo = '';
+    leitor.candidatos.clear();
     leitor.falhas = 0;
     mostrarStatusLeitor('Abrindo a câmera...');
     document.getElementById('scanner').classList.remove('buscando');
@@ -393,19 +424,24 @@ async function lerQuadro(sessao) {
             const resultado = await detector.detect(video);
             if (sessao !== leitor.sessao) return;
 
+            if (leitor.falhas >= 10) mostrarStatusLeitor('Aponte para o código de barras');
             leitor.falhas = 0;
             const codigo = codigoDaLeitura(resultado);
             const agora  = Date.now();
             if (codigo) {
                 // Confirma com outra leitura igual para evitar dígito trocado por imagem
                 // tremida. Não precisa ser no quadro seguinte: na mão, muitos saem borrados.
-                if (codigo === leitor.ultimo && agora - leitor.ultimoEm < JANELA_CONFIRMACAO) {
+                // Guarda vários candidatos: uma leitura falsa no meio (comum com Code 39,
+                // ITF e Codabar) não pode apagar o código certo que estava quase confirmado.
+                for (const [c, em] of leitor.candidatos) {
+                    if (agora - em >= JANELA_CONFIRMACAO) leitor.candidatos.delete(c);
+                }
+                if (leitor.candidatos.has(codigo)) {
                     sinalizarLeitura();
                     processarCodigo(codigo);
                     return;
                 }
-                leitor.ultimo   = codigo;
-                leitor.ultimoEm = agora;
+                leitor.candidatos.set(codigo, agora);
             }
             if (agora - leitor.inicio > TEMPO_DICA_LEITURA && leitor.falhas === 0) {
                 mostrarStatusLeitor('Não conseguiu? Afaste um pouco, evite reflexo ou digite os números.');
@@ -415,7 +451,16 @@ async function lerQuadro(sessao) {
             leitor.falhas++;
             if (leitor.falhas === 10) {
                 console.error('Erro na leitura:', err);
-                mostrarStatusLeitor('O leitor falhou. Digite o código abaixo.', 'erro');
+                mostrarStatusLeitor('O leitor falhou. Tentando de novo... ou digite o código abaixo.', 'erro');
+            }
+            // Em vez de desistir, troca o leitor: o nativo instável passa para o WASM,
+            // e o WASM que não carregou é baixado de novo
+            if (leitor.falhas % 10 === 0) {
+                try {
+                    const atual = await obterDetector().catch(() => null);
+                    await reiniciarDetector({ forcarWasm: !!atual && !atual.wasm });
+                } catch (_) {}
+                if (sessao !== leitor.sessao) return;
             }
         }
     }
@@ -564,6 +609,8 @@ function bindScanner() {
         lerFotoEscolhida(inputFoto.files[0]);
         inputFoto.value = '';
     });
+
+    prepararLeitorEmSegundoPlano();
 
     // Celular derruba a câmera ao trocar de app: libera ao sair e reabre ao voltar
     document.addEventListener('visibilitychange', () => {

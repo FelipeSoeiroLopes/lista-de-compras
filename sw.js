@@ -31,8 +31,9 @@ const ARQUIVOS_APP = [
 ];
 
 // Bibliotecas com a versão fixa no endereço: o conteúdo nunca muda, e o cache vale.
-// Assim o leitor de código de barras também abre sem internet.
-const CDN_VERSIONADA = /^https:\/\/(cdn\.jsdelivr\.net\/npm\/|www\.gstatic\.com\/firebasejs\/)/;
+// Assim o leitor de código de barras também abre sem internet. O motor .wasm do
+// leitor vem de fastly.jsdelivr.net: sem ele no cache, o leitor falhava sem sinal.
+const CDN_VERSIONADA = /^https:\/\/((cdn|fastly)\.jsdelivr\.net\/npm\/|www\.gstatic\.com\/firebasejs\/)/;
 
 self.addEventListener('install', evento => {
     evento.waitUntil(
